@@ -1,0 +1,120 @@
+
+*termName: rxvt-unicode-256color
+*locale: true
+
+! Colors
+*depth:              32
+*foreground:         #ffffff
+*background:         [70]#000000
+! Black + DarkGrey
+*color0:             #000000
+*color8:             #556677
+! DarkRed + Red
+*color1:             #ee6666
+*color9:             #ff7777
+! DarkGreen + Green
+*color2:             #aadd77
+*color10:            #bbee88
+! DarkYellow + Yellow
+*color3:             #eebb55
+*color11:            #ffcc66
+! DarkBlue + Blue
+*color4:             #6699ee
+*color12:            #77aaff
+! DarkMagenta + Magenta
+*color5:             #bb88dd
+*color13:            #cc99ee
+! DarkCyan + Cyan
+*color6:             #77ccee
+*color14:            #88ddff
+! LightGrey + White
+*color7:             #ddeeff
+*color15:            #ffffff
+!*colorBD:            color
+!*colorIT:            color
+!*colorUL:            color
+!*colorRV:            color
+*underlineColor:     #444444
+!*highlightColor:     color
+!*highlightTextColor: color
+!*cursorColor:        color
+!*cursorColor2:       color
+*fading:             15
+*fadeColor:          #111111
+
+urxvt.transparent: true
+urxvt.tintColor:   #00eeff
+urxvt.shading:     15
+urxvt.blurRadius:  20x20
+
+! Fonts
+*font:            xft:FiraMono:style=regular:size=11,xft:Inconsolata:size=12
+*boldFont:        xft:FiraMono:style=bold:size=11,xft:Inconsolata:style=bold:size=12
+*italicFont:      xft:FiraMono:style=Italic:size=11
+*boldItalicFont:  xft:FiraMono:style=BoldItalic:size=11
+*intensityStyles: true
+*letterSpace:     0
+
+! Window behaviour
+urxvt.urgentOnBell: true
+urxvt.visualBell:   false
+
+! Window style
+*externalBorder: 0
+*internalBorder: 0
+*borderLess: false
+*lineSpace: 0
+urxvt.cursorUnderline: true
+urxvt.cursorBlink: true
+
+! Pointer style
+Xcursor.size: 16
+urxvt.pointerBlank: true
+urxvt.pointerBlankDelay: 3600
+!urxvt*pointerShape: arrow
+*pointerColor: #ff0000
+*pointerColor2: #00ff00
+
+
+! Scroll behaviour
+urxvt.saveLines: 4096
+urxvt.jumpScroll: true
+urxvt.skipScroll: false
+urxvt.mouseWheelScrollPage: false
+
+! URLs
+urxvt.perl-ext-common: default,matcher
+urxvt.url-launcher: /usr/bin/xdg-open
+urxvt.matcher.button: 1
+!urxvt.matcher.rend.0: Uline Bold fg5
+
+!urxvt.keysym.sym:                     keysym
+!urxvt.remote-clipboard.fetch:         string
+!urxvt.remote-clipboard.store:         string
+!urxvt.selection-pastebin.cmd:         string
+!urxvt.selection-pastebin.url:         string
+!urxvt.tab-bg:                         colour
+!urxvt.tab-fg:                         colour
+!urxvt.tabbar-bg:                      colour
+!urxvt.tabbar-fg:                      colour
+
+
+! Scrollbar
+urxvt.scrollBar: true
+urxvt.scrollBar_right: true
+urxvt.scrollBar_floating: true
+urxvt.scrollBar_align: center
+urxvt.scrollstyle: plain
+urxvt.transpscrollbar: true
+urxvt.thickness: 5
+urxvt.scrollTtyOutput: false
+urxvt.scrollTtyKeypress: true
+urxvt.scrollWithBuffer: true
+urxvt.scrollColor: #444444
+urxvt.troughColor: #ff0000
+urxvt.borderColor: #111111
+
+URxvt*secondaryScreen: true
+URxvt*secondaryScroll: true
+URxvt*secondaryWheel: true
+

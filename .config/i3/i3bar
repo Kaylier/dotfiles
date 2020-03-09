@@ -1,0 +1,443 @@
+#! /usr/bin/python3
+
+print('{"version":1, "click_event":false} [')
+print('[{"full_text":"loading i3bar..."}]')
+
+import contextlib
+import threading
+import logging
+import signal
+import re
+import os
+import sys
+import subprocess
+from psutil import net_io_counters, disk_usage, disk_io_counters, virtual_memory, swap_memory, cpu_percent, sensors_fans, sensors_temperatures, sensors_battery
+import datetime
+import time
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler('/var/log/i3bar.log')
+handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
+handler.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+
+
+class probe:
+    class thread(threading.Thread):
+        def __init__(self, func, interval: float, args=list(), kwargs=dict()):
+            threading.Thread.__init__(self)
+            self._func = func
+            self._args = args
+            self._kwargs = kwargs
+            self._interval = interval
+            self._value = ''
+            self._stop = False
+        def run(self):
+            while not self._stop:
+                self._value = self._func(*self._args, **self._kwargs)
+                time.sleep(self._interval)
+        def update(self):
+            self._value = self._func(*self._args, **self._kwargs)
+        def __str__(self):
+            return str(self._value) if self._value is not None else ''
+    class ondemand:
+        def __init__(self, func, args=list(), kwargs=dict()):
+            self._func = func
+            self._args = args
+            self._kwargs = kwargs
+        def __str__(self):
+            return self._func(*self._args, **self._kwargs)
+    def __init__(self, func, interval: float, args=list(), kwargs=dict()):
+        self._func = func
+        self._args = args
+        self._kwargs = kwargs
+        self._interval = interval
+        self._value = ''
+        self._thread = None
+    def __enter__(self):
+        if self._interval:
+            self._thread = self.thread(self._func, self._interval, self._args, self._kwargs)
+            self._thread.start()
+            return self._thread
+        else:
+            return self.ondemand(self._func, self._args, self._kwargs)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._interval:
+            self._thread._stop = True
+        return False
+
+
+class Color:
+    label = '#00eedd'
+    label_on = '#00eedd'
+    label_off = '#667788'
+    label_warning = '#bb8844'
+    text = '#cccccc'
+    text_on = '#cccccc'
+    text_off = '#888888'
+    text_warning = '#bb9966'
+
+def gen_block(full_text, color, width=3):
+    full_text = full_text.replace('"', '\\"')
+    return '{' + '"full_text":"{}","color":"{}","separator":false,"separator_block_width":{}'.format(full_text, color, width) + '}'
+
+def gen_block_short(full_text, short_text, color, width=3):
+    full_text = full_text.replace('"', '\\"')
+    short_text = short_text.replace('"', '\\"')
+    return '{' + '"full_text":"{}","short_text":"{}","color":"{}","separator":false,"separator_block_width":{}'.format(full_text, short_text, color, width) + '}'
+
+
+def music():
+    #'♫'
+    return None
+    raise NotImplementedError()
+
+_volume_regex = re.compile(r' \[([0-9]*)%\] \[(on|off)\]\n')
+def volume():
+    try:
+        out = subprocess.check_output(['amixer', 'get', 'Master'])
+    except subprocess.CalledProcessError as e:
+        logger.exception(e)
+        return None
+    vols = _volume_regex.findall(out.decode())
+    if not vols:
+        return None
+    if vols.count(vols[0]) == len(vols):
+        # If all volumes are the same, collapse into one
+        vols = vols[:1]
+
+    if any(vol[1] == 'on' for vol in vols):
+        res = gen_block('', Color.label_on)
+    else:
+        res = gen_block('', Color.label_off)
+
+    for vol, state in vols:
+        if state:
+            res += ',' + gen_block_short(vol+'%', '', Color.text_on)
+        else:
+            res += ',' + gen_block_short(vol+'%', '', Color.text_off)
+    return res
+
+def bluetooth():
+    try:
+        out = subprocess.check_output(['bluetooth'])
+    except subprocess.CalledProcessError as e:
+        logger.exception(e)
+        return None
+    if out.decode() == 'bluetooth = on\n':
+        return gen_block('', Color.label_off)
+        # TODO: show different icon if connected or not
+    return None
+
+def wifi():
+    try:
+        out = subprocess.check_output(['nmcli', '--terse', '--mode', 'tabular', '--field', 'CONNECTIVITY,WIFI', 'general'])
+    except subprocess.CalledProcessError as e:
+        logger.exception(e)
+        connectivity, wifi = '', 'disabled'
+    else:
+        connectivity, wifi = out.decode()[:-1].split(':')
+
+    try:
+        out = subprocess.check_output(['nmcli', '--terse', '--mode', 'tabular', '--field', 'NAME', 'connection', 'show', '--active'])
+    except subprocess.CalledProcessError as e:
+        logger.exception(e)
+        ssid = '-'
+    else:
+        ssid = out.decode()[:-1].replace('\n', '＋')
+        if len(ssid) == 0:
+            ssid = '-'
+
+    if wifi == 'enabled':
+        if connectivity == 'portal':
+            res = gen_block('', Color.label_warning)
+        elif connectivity == 'limited':
+            res = gen_block('', Color.label_warning)
+        elif connectivity == 'full':
+            res = gen_block('', Color.label_on)
+        else: # unknown or none
+            res = gen_block('', Color.label_off)
+        return res + ',' + gen_block_short(ssid, '', Color.text)
+    return None
+
+def vpn():
+    # TODO
+    return None
+    raise NotImplementedError()
+
+_netspeed_recv_counter = 0
+_netspeed_sent_counter = 0
+def netspeed(dt):
+    global _netspeed_recv_counter, _netspeed_sent_counter
+    io_counter = net_io_counters(nowrap=True)
+    down_speed = int((io_counter.bytes_recv - _netspeed_recv_counter) / dt / 1024)
+    _netspeed_recv_counter = io_counter.bytes_recv
+    up_speed = int((io_counter.bytes_sent - _netspeed_sent_counter) / dt / 1024)
+    _netspeed_sent_counter = io_counter.bytes_sent
+    if down_speed < 5:
+        res = gen_block('↓', Color.label_off)
+        res += ',' + gen_block_short('{}ki/s'.format(down_speed), '', Color.text_off)
+    else:
+        res = gen_block('↓', Color.label_on)
+        res += ',' + gen_block_short('{}ki/s'.format(down_speed), '', Color.text_on)
+    if up_speed < 5:
+        res += ',' + gen_block('↑', Color.label_off)
+        res += ',' + gen_block_short('{}ki/s'.format(up_speed), '', Color.text_off)
+    else:
+        res += ',' + gen_block('↑', Color.label_on)
+        res += ',' + gen_block_short('{}ki/s'.format(up_speed), '', Color.text_on)
+    return res
+
+def disk(path):
+    try:
+        disk = disk_usage(path)
+    except OSError as e:
+        logger.exception(e)
+        return None
+    free_gi = int(disk.free / 1024**3)
+    if disk.percent > 90:
+        return gen_block('', Color.label_warning) + ',' + gen_block_short('{}Gi'.format(free_gi), '', Color.text_warning)
+    else:
+        return gen_block('', Color.label) + ',' + gen_block_short('{}Gi'.format(free_gi), '', Color.text)
+
+_diskio_read_counter = 0
+_diskio_write_counter = 0
+def diskio(dt):
+    global _diskio_read_counter, _diskio_write_counter
+    io_counter = disk_io_counters(nowrap=True)
+    write_speed = int((io_counter.write_bytes - _diskio_write_counter) / dt / 1024**2)
+    _diskio_write_counter = io_counter.write_bytes
+    read_speed = int((io_counter.read_bytes - _diskio_read_counter) / dt / 1024**2)
+    _diskio_read_counter = io_counter.read_bytes
+    if write_speed < 10:
+        res = gen_block('↓', Color.label_off)
+        res += ',' + gen_block_short('{}Mi/s'.format(write_speed), '', Color.text_off)
+    else:
+        res = gen_block('↓', Color.label_on)
+        res += ',' + gen_block_short('{}Mi/s'.format(write_speed), '', Color.text_on)
+    if read_speed < 10:
+        res += ',' + gen_block('↑', Color.label_off)
+        res += ',' + gen_block_short('{}Mi/s'.format(read_speed), '', Color.text_off)
+    else:
+        res += ',' + gen_block('↑', Color.label_on)
+        res += ',' + gen_block_short('{}Mi/s'.format(read_speed), '', Color.text_on)
+    return res
+
+def ram():
+    ram = int(virtual_memory().percent)
+    swap = int(swap_memory().percent)
+    if ram < 20:
+        res = gen_block('', Color.label_off)
+        res += ',' + gen_block('{}%'.format(ram), Color.text_off)
+    elif ram < 80:
+        res = gen_block('', Color.label_on)
+        res += ',' + gen_block('{}%'.format(ram), Color.text_on)
+    else:
+        res = gen_block('', Color.label_warning)
+        res += ',' + gen_block('{}%'.format(ram), Color.text_warning)
+    if swap < 1:
+        return res
+    elif swap < 10:
+        res += ',' + gen_block_short('✚', '', Color.label_off)
+        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_off)
+    elif swap < 50:
+        res += ',' + gen_block_short('✚', '', Color.label_on)
+        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_on)
+    else:
+        res += ',' + gen_block_short('✚', '', Color.label_warning)
+        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_warning)
+    return res
+
+def cpu():
+    cpu = int(cpu_percent())
+    if cpu < 10:
+        return gen_block('', Color.label_off) + ',' + gen_block('{}%'.format(cpu), Color.text_off)
+    elif cpu < 90:
+        return gen_block('', Color.label_on) + ',' + gen_block('{}%'.format(cpu), Color.text_on)
+    else:
+        return gen_block('', Color.label_warning) + ',' + gen_block('{}%'.format(cpu), Color.text_warning)
+
+def gpu():
+    try:
+        out = subprocess.check_output(['cat','/proc/acpi/bbswitch'])
+    except subprocess.CalledProcessError as e:
+        logger.exception(e)
+        return None
+    if out.decode().find('ON') >= 0:
+        return gen_block('※', Color.label_on)
+    return None
+
+def fan():
+    fans = sensors_fans()
+    if len(fans) == 0:
+        return None
+    speed = max(x.current for l in fans.values() for x in l)
+    if speed > 0:
+        return gen_block('∗', Color.label_on)
+    else:
+        return gen_block('∗', Color.label_off)
+
+def temperature():
+    temps = sensors_temperatures()
+    if len(temps) == 0:
+        return None
+    temp = max(x.current for l in temps.values() for x in l)
+    if temp < 50:
+        return gen_block('', Color.label_off) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_off)
+    elif temp < 60:
+        return gen_block('', Color.label_off) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_off)
+    elif temp < 70:
+        return gen_block('', Color.label_on) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_on)
+    elif temp < 80:
+        return gen_block('', Color.label_on) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_on)
+    else:
+        return gen_block('', Color.label_warning) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_warning)
+
+def brightness():
+    try:
+        screens = os.listdir('/sys/class/backlight/')
+        res = gen_block('☀', Color.label)
+        for screen in screens:
+            with open('/sys/class/backlight/'+screen+'/brightness', 'r') as f:
+                brightness = int(f.readlines()[0][:-1])
+            with open('/sys/class/backlight/'+screen+'/max_brightness', 'r') as f:
+                max_brightness = int(f.readlines()[0][:-1])
+            brightness_percent = int(100 * brightness / max_brightness)
+            res += ',' + gen_block('{}%'.format(brightness_percent), Color.text_on)
+    except OSError as e:
+        logger.exception(e)
+        return None
+    return res
+
+_battery_secsleft = 0
+def battery(alpha=0.9):
+    global _battery_secsleft
+    bat = sensors_battery()
+    if bat == None:
+        return None
+    bat_percent = int(bat.percent)
+
+    if bat.power_plugged:
+        if bat_percent < 100:
+            res = gen_block('⚉', Color.label_on)
+        else:
+            res = gen_block('⚉', Color.label_off)
+    elif bat.percent < 20:
+        res = gen_block('', Color.label_warning)
+    elif bat.percent < 40:
+        res = gen_block('', Color.label_on)
+    elif bat.percent < 60:
+        res = gen_block('', Color.label_on)
+    elif bat.percent < 80:
+        res = gen_block('', Color.label_on)
+    else:
+        res = gen_block('', Color.label_on)
+
+    if bat.power_plugged:
+        _battery_secsleft = 0
+        res += ',' + gen_block('{}%'.format(bat_percent), Color.text_on)
+    else:
+        _battery_secsleft = int((1-alpha) * _battery_secsleft + alpha * bat.secsleft)
+        minutes, _ = divmod(_battery_secsleft, 60)
+        hours, minutes = divmod(minutes, 60)
+        res += ',' + gen_block_short('{}% ({}:{:0>2})'.format(bat_percent, hours, minutes), '{}%'.format(bat_percent), Color.text_on)
+    return res
+
+def date():
+    now = datetime.datetime.now()
+    res = gen_block(now.strftime('%a.'), Color.label)
+    res += ',' + gen_block_short(now.strftime('%Y.%m.%d'), now.strftime('%m.%d'), Color.text_off)
+    res += ',' + gen_block_short(now.strftime('%H.%M.%S'), now.strftime('%H.%M'), Color.text)
+    return res
+
+def xkblayout():
+    try:
+        out = subprocess.check_output(['xkblayout-state', 'print', '%e'])
+    except subprocess.CalledProcessError as e:
+        logging.exception(e)
+        return None
+    return gen_block_short(out.decode(), '', Color.text_off)
+
+def updates():
+    try:
+        out = subprocess.check_output(['checkupdates'])
+    except subprocess.CalledProcessError as e:
+        logging.exception(e)
+        return None
+    count = out.count(b'\n')
+    if count < 1:
+        return None
+    elif count < 30:
+        return gen_block('☰', Color.label_off)
+    elif count < 60:
+        return gen_block('☰', Color.label_on)
+    else:
+        return gen_block('☰', Color.label_warning)
+
+def logme():
+    try:
+        mtime = os.path.getmtime(os.path.expanduser('~/.logme'))
+    except OSError:
+        mtime = 0
+    dt = time.time() - mtime
+    if dt < 12*3600:
+        return None
+    elif dt < 24*3600:
+        return gen_block('✍', Color.label_off)
+    elif dt < 48*3600:
+        return gen_block('✍', Color.label_on)
+    else:
+        return gen_block('✍', Color.label_warning)
+
+
+def gen_json(*probes):
+    print(',[{"full_text":" ", "separator":false}')
+    for probe in probes:
+        if str(probe) != '':
+            print(',' + str(probe))
+    print(']')
+    sys.stdout.flush()
+
+
+with contextlib.ExitStack() as stack:
+    music       = stack.enter_context(probe(music, 5.0))
+    volume      = stack.enter_context(probe(volume, 1.0))
+    bluetooth   = stack.enter_context(probe(bluetooth, 5.0))
+    wifi        = stack.enter_context(probe(wifi, 5.0))
+    vpn         = stack.enter_context(probe(vpn, 5.0))
+    netspeed    = stack.enter_context(probe(netspeed, 1.0, args=[1.0]))
+    disk        = stack.enter_context(probe(disk, 60.0, args=['/home/']))
+    diskio      = stack.enter_context(probe(diskio, 1.0, args=[1.0]))
+    ram         = stack.enter_context(probe(ram, 1.0))
+    cpu         = stack.enter_context(probe(cpu, 1.0))
+    gpu         = stack.enter_context(probe(gpu, 1.0))
+    fan         = stack.enter_context(probe(fan, 1.0))
+    temperature = stack.enter_context(probe(temperature, 1.0))
+    brightness  = stack.enter_context(probe(brightness, 2.0))
+    battery     = stack.enter_context(probe(battery, 5.0))
+    date        = stack.enter_context(probe(date, None))
+    xkblayout   = stack.enter_context(probe(xkblayout, 1.0))
+    updates     = stack.enter_context(probe(updates, 1800.0))
+    logme       = stack.enter_context(probe(logme, 1800.0))
+
+    separator_small = gen_block(' ', Color.text, 4)
+    separator_large = gen_block(' ', Color.text, 32)
+
+    blocks = [
+            music, separator_large, volume, separator_large,
+            bluetooth, separator_small, wifi, vpn, netspeed, separator_large,
+            disk, diskio, separator_large,
+            ram, separator_small, cpu, separator_small, gpu, separator_large,
+            fan, temperature, brightness, separator_small, battery, separator_large,
+            date, separator_small,
+            xkblayout, separator_small,
+            updates,
+            logme
+            ]
+
+    gen_json = stack.enter_context(probe(gen_json, 1.0, args=blocks))
+    while True:
+        signal.pause()
+        logger.info('Signal caught')
+

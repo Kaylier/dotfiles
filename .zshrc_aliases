@@ -1,0 +1,118 @@
+# Modified commands {{{
+
+alias df='df -Th'
+alias du='du -ch'
+alias grep='grep -TE --color=auto'
+alias jobs='jobs -l'
+alias less='less -iNMz-10'
+alias ls='ls -hF --color=auto'
+alias lsblk='lsblk -o MODE,OWNER,GROUP,NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT'
+alias mkdir='mkdir -pv'
+alias pass=' pass'
+alias ping='ping -Abc 8 -D'
+alias pushd='pushd . > /dev/null'
+alias popd='popd > /dev/null'
+alias sshfs='sshfs -o reconnect'
+alias sudo='sudo '
+#alias sudo='sudo -E'
+alias vpnc='sudo vpnc --no-detach'
+
+# }}}
+# Reattributed commands {{{
+
+alias clear='echo -ne "\033c"'
+[[ $(type _info | grep "function") ]] && alias info='_info'
+alias vi='vim'
+alias view='vim -R'
+
+function evince() { command evince "$@" 2> /dev/null & }
+function firefox() { command firefox "$@" & }
+
+# }}}
+# New commands {{{
+
+alias dotfiles='git --git-dir="${DOTFILES_DIR}" --work-tree="${HOME}"'
+alias g='git'
+alias h='history'
+alias j='jobs -l'
+alias l='ls -Bltro'
+alias ll='ls -l'
+alias lr='ll -R'
+alias la='ll -A'
+alias lg='ll | grep'
+alias lsd='command ls -hd */'
+alias meminfo='free -hlt'
+alias mounted='mount | column -t'
+alias no='yes n'
+alias path='echo -e ${PATH//:/\\n}'
+alias psg='ps -f | head -n 1 && ps -ef | grep'
+alias py='python -i'
+alias sortn='sort | uniq -c | sort -n'
+alias timestamp='date "+%s"'
+alias ytaudio='youtube-dl --audio-format best -x $(xclip -o)'
+alias yolo='ls /usr/bin | shuf -n 1 | xargs sh -c'
+alias zwifi='nmcli c up id Zwifi'
+
+function lcd() { cd $@ && ls ; }
+function fe() { find . -type f -iname '*'"${1:-}"'*' -exec ${2:-file} {} \; ; }
+function ff() { find . -type f -iname '*'"$*"'*' -ls ; }
+function sanitize() { chmod -R u=rwX,g=rX,o= "$@" ; }
+
+if [ $UID -ne 0 ] # if banal user
+then
+    alias halt='sudo systemctl halt'
+    alias poweroff='sudo systemctl poweroff'
+    alias reboot='sudo systemctl reboot'
+
+    alias pacupg='sudo pacman -Syu'
+    alias pacrmorph="pacman -Rns $(pacman -Qtdq)"
+else
+    alias pacupd='pacman -Su'
+    alias pacupg='pacman -Syu'
+    alias pacrmorph="pacman -Rns $(pacman -Qtdq)"
+fi
+
+# }}}
+# Auto-launcher {{{
+
+alias -s c=compile
+alias -s cpp=compile
+
+alias -s avi=vlc
+alias -s flac=vlc
+alias -s mkv=vlc
+alias -s mp3=vlc
+alias -s ogg=vlc
+
+alias -s pdf=evince
+
+alias -s html=firefox
+
+# }}}
+# Safety aliases {{{
+
+alias chgrp='chgrp --preserve-root'
+alias chmod='chmod --preserve-root'
+alias chown='chown --preserve-root'
+alias cp='cp -i'
+alias emacs='vim'
+alias ln='ln -i'
+alias mv='mv -i'
+alias rm='rm -Iv --one-file-system --preserve-root'
+alias ssh='ssh -A'
+
+# }}}
+# Error corrector {{{
+
+alias :q='exit'
+alias pull='git pull'
+alias push='git push'
+alias commit='git commit'
+alias fetch='git fetch; git status'
+alias lslbk='lsblk'
+alias status='git s'
+
+# }}} 
+
+# vim:filetype=sh:syntax=sh
+# vim:foldmethod=marker:foldlevel=0
