@@ -375,21 +375,6 @@ def updates():
     else:
         return gen_block('☰', Color.label_warning)
 
-def logme():
-    try:
-        mtime = os.path.getmtime(os.path.expanduser('~/.logme'))
-    except OSError:
-        mtime = 0
-    dt = time.time() - mtime
-    if dt < 12*3600:
-        return None
-    elif dt < 24*3600:
-        return gen_block('✍', Color.label_off)
-    elif dt < 48*3600:
-        return gen_block('✍', Color.label_on)
-    else:
-        return gen_block('✍', Color.label_warning)
-
 
 def gen_json(*probes):
     print(',[{"full_text":" ", "separator":false}')
@@ -419,7 +404,6 @@ with contextlib.ExitStack() as stack:
     date        = stack.enter_context(probe(date, None))
     xkblayout   = stack.enter_context(probe(xkblayout, 1.0))
     updates     = stack.enter_context(probe(updates, 1800.0))
-    logme       = stack.enter_context(probe(logme, 1800.0))
 
     separator_small = gen_block(' ', Color.text, 4)
     separator_large = gen_block(' ', Color.text, 32)
@@ -433,7 +417,6 @@ with contextlib.ExitStack() as stack:
             date, separator_small,
             xkblayout, separator_small,
             updates,
-            logme
             ]
 
     gen_json = stack.enter_context(probe(gen_json, 1.0, args=blocks))
