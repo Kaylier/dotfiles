@@ -23,7 +23,9 @@ alias vpnc='sudo vpnc --no-detach'
 alias clear='echo -ne "\033c"'
 [[ $(type _info | grep "function") ]] && alias info='_info'
 alias vi='vim'
-alias view='vim -R'
+alias vim='nvim'
+alias view='nvim -R'
+alias vimdiff='nvim -d'
 
 function evince() { command evince "$@" 2> /dev/null & }
 function firefox() { command firefox "$@" & }
