@@ -1,5 +1,7 @@
 # Context {{{
 
+[[ "${terminfo[colors]}" -eq '16777216' ]] || zmodload zsh/nearcolor
+
 # login shell or not, (login shells have problems with unicodes and colors)
 if [[ $- == *l* ]]
 then
