@@ -11,7 +11,7 @@ if has('mouse')
     set mousehide
 endif
 set history=100 " Number of lines of history
-filetype plugin on
+filetype plugin indent on
 set report& " Threshold for reporting number of lines changed
 
 set confirm
@@ -80,8 +80,6 @@ set errorbells
 set belloff=complete,esc,ex,hangul,insertmode,lang,mess,showmatch,operator,register,spell,wildmode
 
 set diffopt=filler,context:4,iblank,icase,iwhite,iwhiteall,iwhiteeol,internal
-
-source ~/.config/nvim/hexmode.vim
 
 " }}}
 " Indentation {{{
@@ -283,7 +281,7 @@ autocmd FileType latex inoremap j gj
 autocmd FileType latex inoremap k gk
 autocmd FileType latex,text set spell
 autocmd FileType latex,text set complete+=kspell,s
-autocmd BufEnter Makefile setlocal noexpandtab
+"autocmd BufEnter Makefile setlocal noexpandtab
 autocmd FileType python set foldmethod=indent
 autocmd FileType c,cpp set complete+=i,d
 autocmd FileType c,cpp set foldignore=#

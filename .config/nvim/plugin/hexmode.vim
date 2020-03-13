@@ -1,3 +1,16 @@
+"============================================================================
+"File:        hexmode.vim
+"Description: vim plugin for on hex editing
+"Origin:      http://vim.wikia.com/wiki/Improved_hex_editing
+"
+"============================================================================
+
+if exists("g:loaded_hexmode_plugin")
+    finish
+endif
+
+let g:loaded_hexmode_plugin = 1
+
 " auto hexmode file patterns, default none
 let g:hexmode_patterns = get(g:, 'hexmode_patterns', '*.bin,*.exe,*.dat,*.o')
 
@@ -131,3 +144,4 @@ if has("autocmd")
     augroup END
 endif
 
+" vim: set et sts=4 sw=4:

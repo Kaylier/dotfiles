@@ -1,0 +1,9 @@
+:Hexmode	hexmode.txt	/*:Hexmode*
+HexmodeContents	hexmode.txt	/*HexmodeContents*
+HexmodeDevelopment	hexmode.txt	/*HexmodeDevelopment*
+HexmodeIntroduction	hexmode.txt	/*HexmodeIntroduction*
+HexmodeUsageAndMappings	hexmode.txt	/*HexmodeUsageAndMappings*
+g:hexmode_autodetect	hexmode.txt	/*g:hexmode_autodetect*
+g:hexmode_patterns	hexmode.txt	/*g:hexmode_patterns*
+g:hexmode_xxd_options	hexmode.txt	/*g:hexmode_xxd_options*
+hexmode.txt	hexmode.txt	/*hexmode.txt*
