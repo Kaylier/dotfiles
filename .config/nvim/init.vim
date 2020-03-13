@@ -66,7 +66,7 @@ set display=truncate,uhex,msgsep " Change the way the text is displayed
 set emoji
 
 set nojoinspaces
-set nrformats=alpha,octal,hex,bin
+set nrformats=octal,hex,bin
 
 set backspace=indent,eol,start " The normal behaviour of backspace
 set nodelcombine
@@ -231,12 +231,13 @@ nmap , :.call ToggleView()<cr>
 " Apparence {{{
 
 syntax enable " Enable syntax highlights
+if $TERM == "alacritty"
+    set termguicolors
+endif
 
 set list
 set listchars=tab:\ \ ·,trail:·,extends:…,precedes:…,conceal:…,nbsp:␣
 set fillchars=stl:\ ,stlnc:\ ,fold:─,diff:\ ,eob:\ 
-
-source ~/.config/nvim/statusline.vim
 
 set number " Show the line number
 "set relativenumber " Show the line number relative to the cursor
@@ -264,15 +265,9 @@ set showbreak=↳ " See this char when wrapping text
 set whichwrap=b,s,<,>,[,]
 
 "colorscheme
-set background=light
-highlight Folded ctermbg=234 ctermfg=blue
-highlight Conceal ctermfg=12 ctermbg=234 guifg=DarkBlue guibg=LightCyan
-highlight CursorColumn ctermbg=232 guibg=DarkGrey
-highlight CursorLine cterm=none ctermbg=232 guibg=DarkGrey
-highlight DiffAdd ctermbg=2 guibg=DarkGreen
-highlight DiffChange ctermbg=3 guibg=DarkYellow
-highlight DiffDelete cterm=bold ctermfg=none ctermbg=1 gui=bold guifg=none guibg=DarkRed
-highlight DiffText cterm=bold ctermbg=1 gui=bold guibg=DarkRed
+colorscheme tender
+
+source ~/.config/nvim/statusline.vim
 
 
 " }}}
