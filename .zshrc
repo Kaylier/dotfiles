@@ -238,6 +238,7 @@ zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' substitute 1
 zstyle ':completion:*' use-compctl true
 zstyle ':completion:*' verbose true
+zstyle ':completion:*' rehash true
 zstyle :compinstall filename '/etc/zsh/zshrc'
 
 autoload -Uz compinit

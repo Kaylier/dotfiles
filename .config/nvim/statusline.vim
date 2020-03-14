@@ -3,25 +3,24 @@ set laststatus=2
 
 " Init of perso colors
 " https://www.design-seeds.com/wander/sea/color-shore-25/
-highlight User1 cterm=bold ctermbg=1    ctermfg=0  gui=bold guibg=#937e74
-highlight User2 cterm=bold ctermbg=246  ctermfg=15 gui=bold guibg=#869e9c guifg=#937e74
-highlight User3 cterm=bold ctermbg=246  ctermfg=15 gui=bold guibg=#869e9c
-highlight User4 cterm=bold ctermbg=244  ctermfg=7  gui=bold guibg=#445957 guifg=#869e9c
-highlight User5 cterm=bold ctermbg=244  ctermfg=15 gui=bold guibg=#445957
-highlight User6 cterm=bold ctermbg=244  ctermfg=8  gui=bold guibg=#364144 guifg=#445957
-highlight User7 cterm=bold ctermbg=244  ctermfg=15 gui=bold guibg=#364144
-highlight User8 cterm=bold ctermbg=none ctermfg=8  gui=bold guibg=none guifg=#364144
-highlight User9 cterm=bold ctermbg=none ctermfg=15 gui=bold guibg=none
-" Lyrs's
-"highlight User1 cterm=bold ctermbg=3 ctermfg=15 guibg=#937e74
-"highlight User2 cterm=bold ctermbg=8 ctermfg=15 guibg=#575a69 guifg=#937e74
-"highlight User3 cterm=bold ctermbg=8 ctermfg=15 guibg=#575a69
-"highlight User4 cterm=bold ctermbg=8 ctermfg=15 guibg=#2d3144 guifg=#575a69
-"highlight User5 cterm=bold ctermbg=8 ctermfg=15 guibg=#2d3144
-"highlight User6 cterm=bold ctermbg=8 ctermfg=15 guibg=#191d32 guifg=#2d3144
-"highlight User7 cterm=bold ctermbg=8 ctermfg=15 guibg=#191d32
-"highlight User8 cterm=bold ctermbg=8 ctermfg=15 guibg=none guifg=#191d32
-"highlight User9 cterm=bold ctermbg=8 ctermfg=15 guibg=none
+if $COLOR0_LIGHT  == "" | let $COLOR0_LIGHT  = "#a0a0a0" | endif
+if $COLOR0_MEDIUM == "" | let $COLOR0_MEDIUM = "#808080" | endif
+if $COLOR0_DARK   == "" | let $COLOR0_DARK   = "#606060" | endif
+if $COLOR1_LIGHT  == "" | let $COLOR1_LIGHT  = "#a0a0c0" | endif
+if $COLOR1_MEDIUM == "" | let $COLOR1_MEDIUM = "#8080a0" | endif
+if $COLOR1_DARK   == "" | let $COLOR1_DARK   = "#606080" | endif
+if $COLOR_ROOT    == "" | let $COLOR_ROOT    = "#ffff00" | endif
+if $COLOR_ERROR   == "" | let $COLOR_ERROR   = "#ff0000" | endif
+if $COLOR_WARNING == "" | let $COLOR_WARNING = "#ff7f00" | endif
+execute 'highlight User1 cterm=bold ctermbg=1    ctermfg=0  gui=bold guibg='.$COLOR1_LIGHT
+execute 'highlight User2 cterm=bold ctermbg=246  ctermfg=15 gui=bold guibg='.$COLOR0_LIGHT.' guifg='.$COLOR1_LIGHT
+execute 'highlight User3 cterm=bold ctermbg=246  ctermfg=15 gui=bold guibg='.$COLOR0_LIGHT
+execute 'highlight User4 cterm=bold ctermbg=244  ctermfg=7  gui=bold guibg='.$COLOR0_MEDIUM.' guifg='.$COLOR0_LIGHT
+execute 'highlight User5 cterm=bold ctermbg=244  ctermfg=15 gui=bold guibg='.$COLOR0_MEDIUM
+execute 'highlight User6 cterm=bold ctermbg=244  ctermfg=8  gui=bold guibg='.$COLOR0_DARK.' guifg='.$COLOR0_MEDIUM
+execute 'highlight User7 cterm=bold ctermbg=244  ctermfg=15 gui=bold guibg='.$COLOR0_DARK
+execute 'highlight User8 cterm=bold ctermbg=none ctermfg=8  gui=bold guibg=none guifg='.$COLOR0_DARK
+execute 'highlight User9 cterm=bold ctermbg=none ctermfg=8  gui=bold guibg=none guifg=none'
 
 if $TERM == "alacritty"
     let transl = ""

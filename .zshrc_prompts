@@ -1,185 +1,166 @@
-# Context {{{
+[[ "${terminfo[colors]}" -ge '256' ]] || zmodload zsh/nearcolor
 
-[[ "${terminfo[colors]}" -eq '16777216' ]] || zmodload zsh/nearcolor
+local colorfg1="%F{$COLOR1_LIGHT}" # light alt
+local colorfg2="%F{$COLOR0_LIGHT}" # light
+local colorfg3="%F{$COLOR0_MEDIUM}" # medium
+local colorfg4="%F{$COLOR0_DARK}" # dark
+local colorfg5="%F{$COLOR1_DARK}" # dark alt
+local colorfg6="%F{$COLOR_ROOT}" # root
+local colorfg7="%F{$COLOR_ERROR}" # error
+local colorfg8="%F{$COLOR_WARNING}" # warning
 
-# login shell or not, (login shells have problems with unicodes and colors)
-if [[ $- == *l* ]]
-then
-    local left='['
-    local right=']'
-    local hyph='-'
-    local junc='|'
-    local up='+'
-    local down='+'
-    local ret='>'
-    local ssh='(s)'
-    local color0='%F{0}'
-    local color1='%F{1}'
-    local color2='%F{2}'
-    local color3='%F{3}'
-    local color4='%F{4}'
-    local color5='%F{3}'
-    local color6='%F{6}'
-    local color7='%F{7}'
-    local color8='%F{7}'
-    local color9='%F{1}'
-    local color10='%F{2}'
-    local color11='%F{3}'
-    local color12='%F{4}'
-    local color13='%F{3}'
-    local color14='%F{6}'
-    local color15='%F{7}'
-elif [[ $TERM == "alacritty" ]]
-then
-    local left=''
-    local right=''
-    local hyph='─'
-    local junc='╟'
-    local up='╓'
-    local down='╨'
-    local ret='↪'
-    local ssh='ⓢ'
-    local color0='%F{0}'
-    local color1='%F{1}'
-    local color2='%F{2}'
-    local color3='%F{3}'
-    local color4='%F{4}'
-    local color5='%F{5}'
-    local color6='%F{6}'
-    local color7='%F{7}'
-    local color8='%F{8}'
-    local color9='%F{9}'
-    local color10='%F{10}'
-    local color11='%F{11}'
-    local color12='%F{12}'
-    local color13='%F{13}'
-    local color14='%F{14}'
-    local color15='%F{15}'
-else
-    local left='⎨'
-    local right='├'
-    local hyph='─'
-    local junc='╟'
-    local up='╓'
-    local down='╨'
-    local ret='↪'
-    local ssh='ⓢ'
-    local color0='%F{0}'
-    local color1='%F{1}'
-    local color2='%F{2}'
-    local color3='%F{3}'
-    local color4='%F{4}'
-    local color5='%F{5}'
-    local color6='%F{6}'
-    local color7='%F{7}'
-    local color8='%F{8}'
-    local color9='%F{9}'
-    local color10='%F{10}'
-    local color11='%F{11}'
-    local color12='%F{12}'
-    local color13='%F{13}'
-    local color14='%F{14}'
-    local color15='%F{15}'
-fi
+local colorbg1="%K{$COLOR1_LIGHT}"
+local colorbg2="%K{$COLOR0_LIGHT}"
+local colorbg3="%K{$COLOR0_MEDIUM}"
+local colorbg4="%K{$COLOR0_DARK}"
+local colorbg5="%K{$COLOR1_DARK}"
+local colorbg6="%K{$COLOR_ROOT}"
+local colorbg7="%K{$COLOR_ERROR}"
+local colorbg8="%K{$COLOR_WARNING}"
 
-if [[ ${UID} -eq 0 ]]
-then
-    local uid="${color1}"
-else
-    local uid="${color2}"
-fi
-
-if [[ -n "${SSH_CONNECTION-}" ]]
-then
-    local ssh_status="${color7}${ssh}%f"
-else
-    local ssh_status="${color8}@%f"
-fi
-
-# }}}
-# Status blocks {{{
-
-local return_status="%(?..${color1}${hyph}${left}${ret}%?${right}${hyph}%f)"
-
-local shell_status="${color4}${hyph}%1(j.${left}%j${right}.)${left}%*${right}${hyph}%f"
-
-local user_status="${color12}${hyph}${left}%n${ssh_status}${color6}%M${color8}:${color7}%3~%f"
-
-# }}}
-# Lines {{{
-
-info_line () {
-    echo "${uid}${up}${return_status}${shell_status}${user_status}%f"
-}
-
-git_line () {
-    local dir=$(git rev-parse --git-dir 2>/dev/null)
-    if [[ -n "$dir" ]]
-    then
-        local branch=$(git rev-parse --abbrev-ref --symbolic-full-name @ 2>/dev/null)
-        local remote_branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
-        local ahead=$(git rev-list @{u}..@ 2>/dev/null | wc -l)
-        local behind=$(git rev-list @..@{u} 2>/dev/null | wc -l)
-        git diff --quiet 2>/dev/null
-        local modified=$?
-        git diff --cached --quiet 2>/dev/null
-        local staged=$?
-        local stash=$(git stash list 2>/dev/null | wc -l)
-
-        echo -n "${uid}${junc}${color11}${left}${remote_branch}${right}"
-
-        (( $ahead + $behind )) && echo -n "${color3}${left}"
-        (( $ahead )) && echo -n "${color10}+${ahead}"
-        (( $ahead * $behind )) && echo -n "${color8}/"
-        (( $behind )) && echo -n "${color9}-${behind}"
-        (( $ahead + $behind )) && echo -n "${color3}${right}${hyph}"
-
-        echo -n "${color13}${hyph}${left}${branch}${right}${hyph}${color5}"
-
-        (( $staged )) && echo -n "[staged]"
-
-        (( $modified )) && echo -n "[modified]"
-
-        (( $stash )) && echo -n " ($stash stashed)"
-
-        echo "%f"
+prompt_ps1_main () {
+    echo -n "${frontcolorfg}%(?..${colorbg7}%f↪ %? ${colorfg7})"
+    echo -n "${colorbg3}%f"
+    echo -n "${colorbg3} %* "
+    echo -n "${colorfg3}${colorbg4}%f"
+    if [ -n "${SSH_CONNECTION-}" ] || [ -n "${SSH_CLIENT-}" ] || [ -n "${SSH_TTY-}" ]; then
+        echo -n " %M "
+    else
+        echo -n "  "
     fi
+    echo -n "${colorfg4}%k%f"
+    echo -n " %40<…<%~%<<%f/%b"
+    echo
 }
 
-prompt_line () {
-    echo "${uid}${down}${hyph}> %f"
+prompt_ps1_git () {
+    local branch=$(git rev-parse --abbrev-ref --symbolic-full-name @ 2>/dev/null)
+    test "${branch}" != "HEAD"
+    local detached=$?
+    if (( $detached )); then
+        local branch="("$(git rev-parse --short @ 2>/dev/null)")"
+    fi
+    local remote_branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+    local tag=$(git describe --tag --abbrev=0 2>/dev/null)
+    local ahead=$(git rev-list @{u}..@ 2>/dev/null | wc -l)
+    local behind=$(git rev-list @..@{u} 2>/dev/null | wc -l)
+    git diff --quiet 2>/dev/null
+    local modified=$?
+    git diff --cached --quiet 2>/dev/null
+    local staged=$?
+    local stash=$(git stash list 2>/dev/null | wc -l)
+    local rebase=$(git config --default "" --get pull.rebase)
+
+    echo -n "   ${frontcolorfg}${colorbg1} %f"
+    if [ -n "${remote_branch}" ]; then
+        if [[ "${remote_branch}" =~ "${branch}$" ]]; then
+            echo -n "${remote_branch%/${branch}} "
+        else
+            echo -n "${remote_branch} "
+        fi
+        if [ -n "${rebase}" ]; then
+            echo -n ""
+        else
+            echo -n ""
+        fi
+    else
+        if (( $detached )); then
+            echo -n ""
+        else
+            echo -n ""
+        fi
+    fi
+    echo -n " ${branch} "
+    if [ -n "${tag}" ]; then
+        if (( $ahead )); then
+            echo -n "ﰠ ${tag} "
+        else
+            echo -n "笠${tag} "
+        fi
+    fi
+    if (( $ahead )); then
+        if (( $behind )); then
+            echo -n "${colorfg5}%f +${ahead}/-${behind} "
+        else
+            echo -n "${colorfg5}%f +${ahead} "
+        fi
+    elif (( $behind )); then
+        echo -n "${colorfg5}%f -${behind} "
+    fi
+    echo -n "${colorfg1}${colorbg5}%f"
+    (( $staged)) && echo -n " staged "
+    (( $staged)) && (( $modified )) && echo -n "${colorfg1}%f"
+    (( $modified )) && echo -n " modified "
+    (( $modified )) && (( $stash )) && echo -n "${colorfg1}%f"
+    (( $stash )) && echo -n " ${stash} stashed "
+    echo -n "${colorfg5}%k%f"
+    echo
 }
 
-# }}}
-# Finally the prompt {{{
+prompt_ps1_input () {
+    echo -n "${frontcolorbg} ${frontcolorfg}%k${colorfg2}╸ %f"
+}
 
 prompt_ps1 () {
-    info_line
-    git_line
-    prompt_line
+    local hasgit=$(git rev-parse --git-dir 2>/dev/null)
+    local frontcolorfg="%(!.${colorfg6}.${colorfg2})"
+    local frontcolorbg="%(!.${colorbg6}.${colorbg2})"
+
+    # Right prompt of main line
+    echo -n "${colorfg5}"
+    printf "%*s" $COLUMNS "$$ "
+    echo -ne "\e[G"
+
+    # Main prompt (user or root)
+    echo -n "${frontcolorbg} %(!.%f.%f) "
+    [ -n "$hasgit" ] && echo -n "  "
+    prompt_ps1_main
+
+    # Right prompt of git line
+    #echo -n "${colorfg5}"
+    #printf "%*s" $COLUMNS " "
+    #echo -ne "\e[G"
+
+    # Git prompt
+    if [ -n "${hasgit}" ]; then
+        echo -n "${frontcolorbg}"
+        prompt_ps1_git
+    fi
+
+    prompt_ps1_input
 }
-PS1='$(prompt_ps1)'
 
 prompt_rps1 () {
-    #local nb_process=$(ps -e | wc -l)
-    #local nb_thread=$(ps -eL | wc -l)
-    #local nb_process_user=$(ps -u ${UID} | wc -l)
-    #local nb_thread_user=$(ps -Lu ${UID} | wc -l)
-
-    #echo "${color8}${nb_process_user}(${nb_thread_user})/${nb_process}($nb_thread) %S%L%s%f"
-
-    echo "${color8}!%h %S%L%s%f"
+    if [ "$(command ps -o tty= -p $$)" = "$(command ps -o tty= -p $PPID)" ]; then
+        echo -n "${colorfg5}[nested shell]%f"
+    fi
+    echo -n "${colorfg1}%1(j. %j job.)%2(j.s.)"
 }
-RPS1='$(prompt_rps1)'
 
-PS2="${color2}╰> %f"
-RPS2="${color8}${PPID}%f"
+if [ "${TERM}" = "alacritty" ]; then
+    PS1='$(prompt_ps1)'
+    RPS1='$(prompt_rps1)'
 
-PS3="${color2}? %f"
+    PS2="${colorbg2} %k${colorfg2}╸ %f"
+    RPS2="${colorfg1}%I%f"
 
-PS4="${color2}#${LINENO}:%f"
+    PS3="${colorfg2}%B %b%f"
 
-# }}}
+    PS4="${colorfg2}#${LINENO}:%f"
+else
+    PS1="%(?..%? )%n@%M:%~ %# "
+fi
+
+preexec () {
+    xtitle "$TERM - $(command ps -o comm= -p $$) - $1"
+    local hex=${COLOR1_LIGHT#"#"}
+    local r=$(printf '0x%0.2s' "$hex")
+    local g=$(printf '0x%0.2s' ${hex#??})
+    local b=$(printf '0x%0.2s' ${hex#????})
+    echo -ne "\e[38;2;$((r));$((g));$((b))m"
+    printf "%*s" $COLUMNS "$(date +"%H:%M:%S") "
+    echo -ne "\e[G\e[39m\e[G"
+}
 
 # vim:filetype=zsh:syntax=zsh
-# vim:foldmethod=marker:foldlevel=0
+# vim:foldmethod=syntax:foldlevel=0

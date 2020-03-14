@@ -57,7 +57,7 @@ client.urgent           $bord2      $back2      $font2      $indi2
 # see showkey in tty to determine a keycode
 # Management {{{
 bindsym $mod+Return     exec dmenu_run
-bindsym $mod+t          exec alacritty
+bindsym $mod+t          exec i3-sensible-terminal
 bindsym $mod+Insert     exec i3lock --color=002244 -f -d; mode "default"; exec systemctl suspend
 # }}}
 # Audio controls {{{
@@ -243,8 +243,8 @@ set $mode_launcher "Launch | < : Music | w : Internet | x : Work | c : Compilati
 mode $mode_launcher {
     #bindsym less workspace $workspace1; exec i3-msg 'append_layout ~/.config/i3/workspace1.json'; mode "default"
     bindsym w workspace $workspace2; exec i3-msg 'append_layout ~/.config/i3/workspace2.json'; exec firefox; exec thunderbird; mode "default"
-    bindsym x workspace $workspace3; exec i3-msg 'append_layout ~/.config/i3/workspace3.json'; exec alacritty; exec alacritty; exec alacritty; exec alacritty; mode "default"
-    bindsym c workspace $workspace4; exec i3-msg 'append_layout ~/.config/i3/workspace4.json'; exec alacritty; exec alacritty; exec alacritty; exec alacritty; mode "default"
+    bindsym x workspace $workspace3; exec i3-msg 'append_layout ~/.config/i3/workspace3.json'; exec i3-sensible-terminal; exec i3-sensible-terminal; exec i3-sensible-terminal; exec i3-sensible-terminal; mode "default"
+    bindsym c workspace $workspace4; exec i3-msg 'append_layout ~/.config/i3/workspace4.json'; exec i3-sensible-terminal; exec i3-sensible-terminal; exec i3-sensible-terminal; exec i3-sensible-terminal; mode "default"
 
     # back to normal
     bindsym Return mode "default"
@@ -350,7 +350,7 @@ for_window [window_role="Preferences"] floating enable
 exec_always feh --no-fehbg --bg-scale ~/.wallpaper.png
 exec --no-startup-id redshift
 
-exec alacritty --class scratchpad
+exec i3-sensible-terminal --class scratchpad
 
 #exec qjackctl
 

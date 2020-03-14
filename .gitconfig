@@ -98,7 +98,7 @@
 	default = simple
 
 [pull]
-    rebase = preserve
+    rebase = merges
 
 [rebase]
     stat = true

@@ -73,11 +73,7 @@ function dotview()
 # Change the title of the terminal if possible
 function xtitle()
 {
-    case "$TERM" in
-        *term* | rxvt)
-            echo -ne "\e]0;$*\a" ;;
-        *)  ;;
-    esac
+    echo -ne "\e]0;$*\a"
 }
 # }}}
 # extract {{{
