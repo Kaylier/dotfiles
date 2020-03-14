@@ -51,7 +51,7 @@
     rs = rebase --skip
 
 	# Status
-    s = status -sb -uall
+    s = status -sb
 
     # Archive
     tar = archive --prefix=repo/ HEAD --output
