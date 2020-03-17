@@ -1,19 +1,7 @@
 #! /usr/bin/python3
-
-print('{"version":1, "click_event":false} [')
-print('[{"full_text":"loading i3bar..."}]')
-
-import contextlib
-import threading
-import logging
-import signal
-import re
-import os
-import sys
-import subprocess
-from psutil import net_io_counters, disk_usage, disk_io_counters, virtual_memory, swap_memory, cpu_percent, sensors_fans, sensors_temperatures, sensors_battery
-import datetime
-import time
+import sys, os, select, threading, time, logging
+import json, re
+import psutil, datetime, subprocess
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -22,405 +10,473 @@ handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)
 handler.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+def update(*args, **kwargs):
+    dt = datetime.timedelta(*args, **kwargs).total_seconds()
+    def decorator(cls):
+        inst = cls()
+        def thread_func():
+            while True:
+                inst.update()
+                time.sleep(dt)
+        inst.thread = threading.Thread(target=thread_func)
+        inst.thread.start()
+        return inst
+    return decorator
 
-class probe:
-    class thread(threading.Thread):
-        def __init__(self, func, interval: float, args=list(), kwargs=dict()):
-            threading.Thread.__init__(self)
-            self._func = func
-            self._args = args
-            self._kwargs = kwargs
-            self._interval = interval
-            self._value = ''
-            self._stop = False
-        def run(self):
-            while not self._stop:
-                self._value = self._func(*self._args, **self._kwargs)
-                time.sleep(self._interval)
-        def update(self):
-            self._value = self._func(*self._args, **self._kwargs)
-        def __str__(self):
-            return str(self._value) if self._value is not None else ''
-    class ondemand:
-        def __init__(self, func, args=list(), kwargs=dict()):
-            self._func = func
-            self._args = args
-            self._kwargs = kwargs
-        def __str__(self):
-            return self._func(*self._args, **self._kwargs)
-    def __init__(self, func, interval: float, args=list(), kwargs=dict()):
-        self._func = func
-        self._args = args
-        self._kwargs = kwargs
-        self._interval = interval
-        self._value = ''
-        self._thread = None
-    def __enter__(self):
-        if self._interval:
-            self._thread = self.thread(self._func, self._interval, self._args, self._kwargs)
-            self._thread.start()
-            return self._thread
+
+@update(seconds=1)
+class music:
+    def __init__(self):
+        pass
+    def update(self):
+        pass
+
+@update(seconds=1)
+class volume:
+    def __init__(self):
+        self.right = 0
+        self.left = 0
+        self.righton = False
+        self.lefton = False
+        self.regex_left = re.compile(b"Front Left:\s+[a-zA-Z]+\s+[0-9]+\s+\[([0-9]+)%\]\s+\[(on|off)\]")
+        self.regex_right = re.compile(b"Front Right:\s+[a-zA-Z]+\s+[0-9]+\s+\[([0-9]+)%\]\s+\[(on|off)\]")
+    def update(self):
+        try:
+            out = subprocess.check_output(['amixer', 'get', 'Master'], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"[volume] amixer returned {e.returncode}: {e.stdout.rstrip()}")
         else:
-            return self.ondemand(self._func, self._args, self._kwargs)
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._interval:
-            self._thread._stop = True
-        return False
+            left = (self.regex_left.findall(out)+[(b'0',b'off')])[0]
+            right = (self.regex_right.findall(out)+[(b'0',b'off')])[0]
+            self.right = int(right[0])
+            self.left = int(left[0])
+            self.righton = (right[1] == b"on")
+            self.lefton = (left[1] == b"on")
 
-
-class Color:
-    label = '#00eedd'
-    label_on = '#00eedd'
-    label_off = '#667788'
-    label_warning = '#bb8844'
-    text = '#cccccc'
-    text_on = '#cccccc'
-    text_off = '#888888'
-    text_warning = '#bb9966'
-
-def gen_block(full_text, color, width=3):
-    full_text = full_text.replace('"', '\\"')
-    return '{' + '"full_text":"{}","color":"{}","separator":false,"separator_block_width":{}'.format(full_text, color, width) + '}'
-
-def gen_block_short(full_text, short_text, color, width=3):
-    full_text = full_text.replace('"', '\\"')
-    short_text = short_text.replace('"', '\\"')
-    return '{' + '"full_text":"{}","short_text":"{}","color":"{}","separator":false,"separator_block_width":{}'.format(full_text, short_text, color, width) + '}'
-
-
-def music():
-    #'♫'
-    return None
-    raise NotImplementedError()
-
-_volume_regex = re.compile(r' \[([0-9]*)%\] \[(on|off)\]\n')
-def volume():
-    try:
-        out = subprocess.check_output(['amixer', 'get', 'Master'])
-    except subprocess.CalledProcessError as e:
-        logger.exception(e)
-        return None
-    vols = _volume_regex.findall(out.decode())
-    if not vols:
-        return None
-    if vols.count(vols[0]) == len(vols):
-        # If all volumes are the same, collapse into one
-        vols = vols[:1]
-
-    if any(vol[1] == 'on' for vol in vols):
-        res = gen_block('', Color.label_on)
-    else:
-        res = gen_block('', Color.label_off)
-
-    for vol, state in vols:
-        if state:
-            res += ',' + gen_block_short(vol+'%', '', Color.text_on)
+@update(seconds=2)
+class connection:
+    def __init__(self):
+        self.connectivity = 'none'
+        self.connections = []
+    def update(self):
+        try:
+            out = subprocess.check_output(['nmcli', '--terse', 'network', 'connectivity'], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"[connection] nmcli returned {e.returncode}: {e.stdout.rstrip()}")
+            self.connectivity = 'unknown'
         else:
-            res += ',' + gen_block_short(vol+'%', '', Color.text_off)
-    return res
-
-def bluetooth():
-    try:
-        out = subprocess.check_output(['bluetooth'])
-    except subprocess.CalledProcessError as e:
-        logger.exception(e)
-        return None
-    if out.decode() == 'bluetooth = on\n':
-        return gen_block('', Color.label_off)
-        # TODO: show different icon if connected or not
-    return None
-
-def wifi():
-    try:
-        out = subprocess.check_output(['nmcli', '--terse', '--mode', 'tabular', '--field', 'CONNECTIVITY,WIFI', 'general'])
-    except subprocess.CalledProcessError as e:
-        logger.exception(e)
-        connectivity, wifi = '', 'disabled'
-    else:
-        connectivity, wifi = out.decode()[:-1].split(':')
-
-    try:
-        out = subprocess.check_output(['nmcli', '--terse', '--mode', 'tabular', '--field', 'NAME', 'connection', 'show', '--active'])
-    except subprocess.CalledProcessError as e:
-        logger.exception(e)
-        ssid = '-'
-    else:
-        ssid = out.decode()[:-1].replace('\n', '＋')
-        if len(ssid) == 0:
-            ssid = '-'
-
-    if wifi == 'enabled':
-        if connectivity == 'portal':
-            res = gen_block('', Color.label_warning)
-        elif connectivity == 'limited':
-            res = gen_block('', Color.label_warning)
-        elif connectivity == 'full':
-            res = gen_block('', Color.label_on)
-        else: # unknown or none
-            res = gen_block('', Color.label_off)
-        return res + ',' + gen_block_short(ssid, '', Color.text)
-    return None
-
-def vpn():
-    # TODO
-    return None
-    raise NotImplementedError()
-
-_netspeed_recv_counter = 0
-_netspeed_sent_counter = 0
-def netspeed(dt):
-    global _netspeed_recv_counter, _netspeed_sent_counter
-    io_counter = net_io_counters(nowrap=True)
-    down_speed = int((io_counter.bytes_recv - _netspeed_recv_counter) / dt / 1024)
-    _netspeed_recv_counter = io_counter.bytes_recv
-    up_speed = int((io_counter.bytes_sent - _netspeed_sent_counter) / dt / 1024)
-    _netspeed_sent_counter = io_counter.bytes_sent
-    if down_speed < 5:
-        res = gen_block('↓', Color.label_off)
-        res += ',' + gen_block_short('{}ki/s'.format(down_speed), '', Color.text_off)
-    else:
-        res = gen_block('↓', Color.label_on)
-        res += ',' + gen_block_short('{}ki/s'.format(down_speed), '', Color.text_on)
-    if up_speed < 5:
-        res += ',' + gen_block('↑', Color.label_off)
-        res += ',' + gen_block_short('{}ki/s'.format(up_speed), '', Color.text_off)
-    else:
-        res += ',' + gen_block('↑', Color.label_on)
-        res += ',' + gen_block_short('{}ki/s'.format(up_speed), '', Color.text_on)
-    return res
-
-def disk(path):
-    try:
-        disk = disk_usage(path)
-    except OSError as e:
-        logger.exception(e)
-        return None
-    free_gi = int(disk.free / 1024**3)
-    if disk.percent > 90:
-        return gen_block('', Color.label_warning) + ',' + gen_block_short('{}Gi'.format(free_gi), '', Color.text_warning)
-    else:
-        return gen_block('', Color.label) + ',' + gen_block_short('{}Gi'.format(free_gi), '', Color.text)
-
-_diskio_read_counter = 0
-_diskio_write_counter = 0
-def diskio(dt):
-    global _diskio_read_counter, _diskio_write_counter
-    io_counter = disk_io_counters(nowrap=True)
-    write_speed = int((io_counter.write_bytes - _diskio_write_counter) / dt / 1024**2)
-    _diskio_write_counter = io_counter.write_bytes
-    read_speed = int((io_counter.read_bytes - _diskio_read_counter) / dt / 1024**2)
-    _diskio_read_counter = io_counter.read_bytes
-    if write_speed < 10:
-        res = gen_block('↓', Color.label_off)
-        res += ',' + gen_block_short('{}Mi/s'.format(write_speed), '', Color.text_off)
-    else:
-        res = gen_block('↓', Color.label_on)
-        res += ',' + gen_block_short('{}Mi/s'.format(write_speed), '', Color.text_on)
-    if read_speed < 10:
-        res += ',' + gen_block('↑', Color.label_off)
-        res += ',' + gen_block_short('{}Mi/s'.format(read_speed), '', Color.text_off)
-    else:
-        res += ',' + gen_block('↑', Color.label_on)
-        res += ',' + gen_block_short('{}Mi/s'.format(read_speed), '', Color.text_on)
-    return res
-
-def ram():
-    ram = int(virtual_memory().percent)
-    swap = int(swap_memory().percent)
-    if ram < 20:
-        res = gen_block('', Color.label_off)
-        res += ',' + gen_block('{}%'.format(ram), Color.text_off)
-    elif ram < 80:
-        res = gen_block('', Color.label_on)
-        res += ',' + gen_block('{}%'.format(ram), Color.text_on)
-    else:
-        res = gen_block('', Color.label_warning)
-        res += ',' + gen_block('{}%'.format(ram), Color.text_warning)
-    if swap < 1:
-        return res
-    elif swap < 10:
-        res += ',' + gen_block_short('✚', '', Color.label_off)
-        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_off)
-    elif swap < 50:
-        res += ',' + gen_block_short('✚', '', Color.label_on)
-        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_on)
-    else:
-        res += ',' + gen_block_short('✚', '', Color.label_warning)
-        res += ',' + gen_block_short('{}%'.format(swap), '', Color.text_warning)
-    return res
-
-def cpu():
-    cpu = int(cpu_percent())
-    if cpu < 10:
-        return gen_block('', Color.label_off) + ',' + gen_block('{}%'.format(cpu), Color.text_off)
-    elif cpu < 90:
-        return gen_block('', Color.label_on) + ',' + gen_block('{}%'.format(cpu), Color.text_on)
-    else:
-        return gen_block('', Color.label_warning) + ',' + gen_block('{}%'.format(cpu), Color.text_warning)
-
-def gpu():
-    try:
-        out = subprocess.check_output(['cat','/proc/acpi/bbswitch'])
-    except subprocess.CalledProcessError as e:
-        logger.exception(e)
-        return None
-    if out.decode().find('ON') >= 0:
-        return gen_block('※', Color.label_on)
-    return None
-
-def fan():
-    fans = sensors_fans()
-    if len(fans) == 0:
-        return None
-    speed = max(x.current for l in fans.values() for x in l)
-    if speed > 0:
-        return gen_block('∗', Color.label_on)
-    else:
-        return gen_block('∗', Color.label_off)
-
-def temperature():
-    temps = sensors_temperatures()
-    if len(temps) == 0:
-        return None
-    temp = max(x.current for l in temps.values() for x in l)
-    if temp < 50:
-        return gen_block('', Color.label_off) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_off)
-    elif temp < 60:
-        return gen_block('', Color.label_off) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_off)
-    elif temp < 70:
-        return gen_block('', Color.label_on) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_on)
-    elif temp < 80:
-        return gen_block('', Color.label_on) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_on)
-    else:
-        return gen_block('', Color.label_warning) + ',' + gen_block_short('{}℃'.format(int(temp)), '', Color.text_warning)
-
-def brightness():
-    try:
-        screens = os.listdir('/sys/class/backlight/')
-        res = gen_block('☀', Color.label)
-        for screen in screens:
-            with open('/sys/class/backlight/'+screen+'/brightness', 'r') as f:
-                brightness = int(f.readlines()[0][:-1])
-            with open('/sys/class/backlight/'+screen+'/max_brightness', 'r') as f:
-                max_brightness = int(f.readlines()[0][:-1])
-            brightness_percent = int(100 * brightness / max_brightness)
-            res += ',' + gen_block('{}%'.format(brightness_percent), Color.text_on)
-    except OSError as e:
-        logger.exception(e)
-        return None
-    return res
-
-_battery_secsleft = 0
-def battery(alpha=0.9):
-    global _battery_secsleft
-    bat = sensors_battery()
-    if bat == None:
-        return None
-    bat_percent = int(bat.percent)
-
-    if bat.power_plugged:
-        if bat_percent < 100:
-            res = gen_block('⚉', Color.label_on)
+            self.connectivity = out.rstrip().decode()
+        try:
+            out = subprocess.check_output(['nmcli', '--terse', '--field', 'NAME,TYPE', 'connection', 'show', '--active'])
+        except subprocess.CalledProcessError as e:
+            logging.error(f"[connection] nmcli returned {e.returncode}: {e.stdout.rstrip()}")
         else:
-            res = gen_block('⚉', Color.label_off)
-    elif bat.percent < 20:
-        res = gen_block('', Color.label_warning)
-    elif bat.percent < 40:
-        res = gen_block('', Color.label_on)
-    elif bat.percent < 60:
-        res = gen_block('', Color.label_on)
-    elif bat.percent < 80:
-        res = gen_block('', Color.label_on)
-    else:
-        res = gen_block('', Color.label_on)
+            if out:
+                self.connections = [l.split(':') for l in out.decode().rstrip().split('\n')]
+            else:
+                self.connections = []
 
-    if bat.power_plugged:
-        _battery_secsleft = 0
-        res += ',' + gen_block('{}%'.format(bat_percent), Color.text_on)
-    else:
-        _battery_secsleft = int((1-alpha) * _battery_secsleft + alpha * bat.secsleft)
-        minutes, _ = divmod(_battery_secsleft, 60)
-        hours, minutes = divmod(minutes, 60)
-        res += ',' + gen_block_short('{}% ({}:{:0>2})'.format(bat_percent, hours, minutes), '{}%'.format(bat_percent), Color.text_on)
-    return res
+@update(seconds=1)
+class netspeed:
+    def __init__(self):
+        self.downspeed = 0
+        self.upspeed = 0
+        self.bytes_sent = 0
+        self.bytes_recv = 0
+        self.time = 0
+    def update(self):
+        io = psutil.net_io_counters(nowrap=True)
+        self.time, dt = time.time(), time.time() - self.time
+        self.downspeed = int((io.bytes_recv - self.bytes_recv) / dt)
+        self.upspeed = int((io.bytes_sent - self.bytes_sent) / dt)
+        self.bytes_recv = io.bytes_recv
+        self.bytes_sent = io.bytes_sent
 
-def date():
-    now = datetime.datetime.now()
-    res = gen_block(now.strftime('%a.'), Color.label)
-    res += ',' + gen_block_short(now.strftime('%Y.%m.%d'), now.strftime('%m.%d'), Color.text_off)
-    res += ',' + gen_block_short(now.strftime('%H.%M.%S'), now.strftime('%H.%M'), Color.text)
-    return res
+@update(minutes=1)
+class disk:
+    def __init__(self):
+        self.percent = 0
+        self.free = 0
+        self.total = 0
+    def update(self):
+        usg = psutil.disk_usage("/home")
+        self.percent = usg.percent
+        self.free = usg.free
+        self.total = usg.total
 
-def xkblayout():
-    try:
-        out = subprocess.check_output(['xkblayout-state', 'print', '%e'])
-    except subprocess.CalledProcessError as e:
-        logging.exception(e)
-        return None
-    return gen_block_short(out.decode(), '', Color.text_off)
+@update(seconds=1)
+class ram:
+    def __init__(self):
+        self.percent = 0
+        self.swap = 0
+    def update(self):
+        self.percent = int(psutil.virtual_memory().percent)
+        self.swap = int(psutil.swap_memory().percent)
 
-def updates():
-    try:
-        out = subprocess.check_output(['checkupdates'])
-    except subprocess.CalledProcessError as e:
-        logging.exception(e)
-        return None
-    count = out.count(b'\n')
-    if count < 1:
-        return None
-    elif count < 30:
-        return gen_block('☰', Color.label_off)
-    elif count < 60:
-        return gen_block('☰', Color.label_on)
-    else:
-        return gen_block('☰', Color.label_warning)
+@update(seconds=1)
+class cpu:
+    def __init__(self):
+        self.percent = 0
+    def update(self):
+        self.percent = int(psutil.cpu_percent())
+
+@update(seconds=1)
+class gpu:
+    def __init__(self):
+        self.active = False
+    def update(self):
+        try:
+            with open("/proc/acpi/bbswitch", 'r') as f:
+                txt = f.readline()
+            if "ON" in txt:
+                self.active = True
+            elif "OFF" in txt:
+                self.active = False
+            else:
+                logging.error("[gpu] Cannot read value")
+        except OSError as e:
+            logging.error("[gpu] Cannot open state file")
+
+@update(seconds=1)
+class fan:
+    def __init__(self):
+        self.speed = 0
+    def update(self):
+        self.speed = max((x.current for l in psutil.sensors_fans().values() for x in l), default=0)
+
+@update(seconds=1)
+class temperature:
+    def __init__(self):
+        self.temp = 0
+    def update(self):
+        self.temp = int(max(x.current for l in psutil.sensors_temperatures().values() for x in l))
+
+@update(seconds=1)
+class brightness:
+    def __init__(self):
+        self.percent = 0
+        screens = os.listdir("/sys/class/backlight/")
+        if not screens:
+            logging.error("[brightness] No backlight found")
+        self.file = "/sys/class/backlight/" + screens[0] + "/"
+    def update(self):
+        try:
+            with open(self.file + "actual_brightness", 'r') as f:
+                value = int(f.readline())
+            with open(self.file + "max_brightness", 'r') as f:
+                maxvalue = int(f.readline())
+            self.percent = 100*value // maxvalue
+        except os.OSError as e:
+            logger.error("[brightness] " + e)
+
+@update(seconds=5)
+class battery:
+    def __init__(self):
+        self.alpha = 0.9
+        self.power_plugged = False
+        self.percent = 100
+        self.secsleft = 60
+    def update(self):
+        bat = psutil.sensors_battery()
+        if bat is not None:
+            self.power_plugged = bat.power_plugged
+            self.percent = int(bat.percent)
+            if bat.secsleft < 60*60*24: # Can have large value just after plugging
+                self.secsleft = int((1-self.alpha)*self.secsleft + self.alpha*bat.secsleft)
+
+@update(seconds=1)
+class clock:
+    def __init__(self):
+        self.day = 'Abc.'
+        self.date = '0000.00.00'
+        self.date_short = '00.00'
+        self.hour = '00.00.00'
+        self.hour_short = '00.00'
+    def update(self):
+        now = datetime.datetime.now()
+        self.day = now.strftime('%a.')
+        self.date = now.strftime('%Y.%m.%d')
+        self.date_short = now.strftime('%m.%d')
+        self.hour = now.strftime('%H.%M.%S')
+        self.hour_short = now.strftime('%H.%M')
+
+@update(minutes=30)
+class updates:
+    def __init__(self):
+        self.count = 0
+    def update(self):
+        try:
+            out = subprocess.check_output(['checkupdates'], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            if e.returncode == 2:
+                self.count = 0
+            else:
+                logging.error(f"[updates] checkupdates returned {e.returncode}: {e.stdout.rstrip()}")
+        else:
+            self.count = out.count(b'\n')
+
+def input_handler():
+    line = next(sys.stdin)
+    if line != '[\n':
+        logging.error("Expected input '[\n', received '"+line+"'")
+    for line in sys.stdin:
+        line = line.strip(',')
+        logging.info(line)
+        try:
+            click_event = json.loads(line)
+        except json.JSONDecodeError as e:
+            logging.error("input error")
+            continue
+        if click_event.get("name") == "updates":
+            if click_event.get("button") == 1:
+                updates.update()
+        elif click_event.get("name") == "brightness":
+            if click_event.get("button") == 4:
+                subprocess.Popen(["xbacklightamd", "+", "50"])
+            elif click_event.get("button") == 5:
+                subprocess.Popen(["xbacklightamd", "-", "50"])
+        elif click_event.get("name") in ["cpu", "ram", "swap"]:
+            if click_event.get("button") == 1:
+                subprocess.Popen(["alacritty", "--class", "pop-up", "--command", "htop"])
+        elif click_event.get("name") == "volume":
+            if click_event.get("button") == 1:
+                subprocess.Popen(["amixer", "sset", "Master", "toggle"], stdout=subprocess.DEVNULL)
+            elif click_event.get("button") == 4:
+                subprocess.Popen(["amixer", "sset", "Master", "5%+"], stdout=subprocess.DEVNULL)
+            elif click_event.get("button") == 5:
+                subprocess.Popen(["amixer", "sset", "Master", "5%-"], stdout=subprocess.DEVNULL)
 
 
-def gen_json(*probes):
-    print(',[{"full_text":" ", "separator":false}')
-    for probe in probes:
-        if str(probe) != '':
-            print(',' + str(probe))
-    print(']')
-    sys.stdout.flush()
 
+icon_on = {"color": "#33eedd", "align": "right", "separator": False, "separator_block_width": 3}
+icon_off = {"color": "#667788", "align": "right", "separator": False, "separator_block_width": 3}
+icon_warning = {"color": "#bb8844", "align": "right", "separator": False, "separator_block_width": 3}
+text_on = {"color": "#eaeaea", "align": "left", "separator": False, "separator_block_width": 3}
+text_off = {"color": "#888888", "align": "left", "separator": False, "separator_block_width": 3}
+text_warning = {"color": "#937e74", "align": "left", "separator": False, "separator_block_width": 3}
 
-with contextlib.ExitStack() as stack:
-    music       = stack.enter_context(probe(music, 5.0))
-    volume      = stack.enter_context(probe(volume, 1.0))
-    bluetooth   = stack.enter_context(probe(bluetooth, 5.0))
-    wifi        = stack.enter_context(probe(wifi, 5.0))
-    vpn         = stack.enter_context(probe(vpn, 5.0))
-    netspeed    = stack.enter_context(probe(netspeed, 1.0, args=[1.0]))
-    disk        = stack.enter_context(probe(disk, 60.0, args=['/home/']))
-    diskio      = stack.enter_context(probe(diskio, 1.0, args=[1.0]))
-    ram         = stack.enter_context(probe(ram, 1.0))
-    cpu         = stack.enter_context(probe(cpu, 1.0))
-    gpu         = stack.enter_context(probe(gpu, 1.0))
-    fan         = stack.enter_context(probe(fan, 1.0))
-    temperature = stack.enter_context(probe(temperature, 1.0))
-    brightness  = stack.enter_context(probe(brightness, 2.0))
-    battery     = stack.enter_context(probe(battery, 5.0))
-    date        = stack.enter_context(probe(date, None))
-    xkblayout   = stack.enter_context(probe(xkblayout, 1.0))
-    updates     = stack.enter_context(probe(updates, 1800.0))
+if __name__ == '__main__':
+    sys.stdout.write(json.dumps({"version": 1, "click_events": True}))
+    sys.stdout.write('[')
 
-    separator_small = gen_block(' ', Color.text, 4)
-    separator_large = gen_block(' ', Color.text, 32)
-
-    blocks = [
-            music, separator_large, volume, separator_large,
-            bluetooth, separator_small, wifi, vpn, netspeed, separator_large,
-            disk, diskio, separator_large,
-            ram, separator_small, cpu, separator_small, gpu, separator_large,
-            fan, temperature, brightness, separator_small, battery, separator_large,
-            date, separator_small,
-            xkblayout, separator_small,
-            updates,
-            ]
-
-    gen_json = stack.enter_context(probe(gen_json, 1.0, args=blocks))
+    read_stdin = threading.Thread(target=input_handler)
+    read_stdin.start()
     while True:
-        signal.pause()
-        logger.info('Signal caught')
+        out = []
+
+        # Music
+        # TODO
+        #'♫'
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 32})
+
+        if True: # Volume
+            symbol = "奄奔墳"[volume.right//34]
+            if volume.righton:
+                out.append({**icon_on, "name": "volume", "full_text": symbol})
+                out.append({**text_on, "name": "volume", "full_text": f"{volume.right}%"})
+            else:
+                out.append({**icon_off, "name": "volume", "full_text": symbol})
+                out.append({**text_off, "name": "volume", "full_text": f"{volume.right}%"})
+            if volume.righton != volume.lefton or volume.left != volume.right:
+                symbol = "奄奔墳"[volume.left//34]
+                if volume.lefton:
+                    out.append({**icon_on, "name": "volume", "full_text": symbol})
+                    out.append({**text_on, "name": "volume", "full_text": f"{volume.left}%"})
+                else:
+                    out.append({**icon_off, "name": "volume", "full_text": symbol})
+                    out.append({**text_off, "name": "volume", "full_text": f"{volume.left}%"})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 32})
+
+        if True: # Connection
+            for ssid, tp in connection.connections:
+                if tp == "802-11-wireless":
+                    out.append({**icon_on, "name": "connection", "full_text": "直"})
+                elif tp == "802-3-ethernet":
+                    out.append({**icon_on, "name": "connection", "full_text": ""})
+                elif tp == "bluetooth":
+                    out.append({**icon_on, "name": "connection", "full_text": ""})
+                elif tp in ["bridge", "ip-tunnel", "tun", "vpn", "wireguard"]:
+                    out.append({**icon_on, "name": "connection", "full_text": "嬨"})
+                else:
+                    out.append({**icon_on, "name": "connection", "full_text": "ﲋ"})
+                out.append({**text_on, "name": "connection", "full_text": ssid, "short_text": ""})
+
+                out.append({**text_off, "full_text": " ", "separator_block_width": 4})
+
+            if connection.connectivity == 'portal':
+                out.append({**icon_warning, "name": "connection", "full_text": ""})
+            elif connection.connectivity == 'limited':
+                out.append({**icon_warning, "name": "connection", "full_text": "爵"})
+            elif connection.connectivity == 'full':
+                out.append({**icon_on, "name": "connection", "full_text": "爵"})
+            else:
+                out.append({**icon_off, "name": "connection", "full_text": "爵"})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 4})
+
+        if True: # Netspeed
+            if netspeed.downspeed < 1000:
+                out.append({**icon_off, "name": "netspeed", "full_text": ""})
+                out.append({**text_off, "name": "netspeed", "full_text": f"{netspeed.downspeed//1000}ko/s", "min_width": "100ko/s"})
+            elif netspeed.downspeed < 1000000:
+                out.append({**icon_on, "name": "netspeed", "full_text": ""})
+                out.append({**text_on, "name": "netspeed", "full_text": f"{netspeed.downspeed//1000}ko/s", "min_width": "100ko/s"})
+            else:
+                out.append({**icon_warning, "name": "netspeed", "full_text": ""})
+                out.append({**text_warning, "name": "netspeed", "full_text": f"{netspeed.downspeed/1000000:.1f}Mo/s", "min_width": "100ko/s"})
+            if netspeed.upspeed < 1000:
+                out.append({**icon_off, "name": "netspeed", "full_text": ""})
+                out.append({**text_off, "name": "netspeed", "full_text": f"{netspeed.upspeed//1000}ko/s", "min_width": "100ko/s"})
+            elif netspeed.upspeed < 1000000:
+                out.append({**icon_on, "name": "netspeed", "full_text": ""})
+                out.append({**text_on, "name": "netspeed", "full_text": f"{netspeed.upspeed//1000}ko/s", "min_width": "100ko/s"})
+            else:
+                out.append({**icon_warning, "name": "netspeed", "full_text": ""})
+                out.append({**text_warning, "name": "netspeed", "full_text": f"{netspeed.upspeed/1000000:.2f}Mo/s", "min_width": "100ko/s"})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 32})
+
+        if True: # Disk space
+            if disk.percent < 95:
+                out.append({**icon_on, "name": "disk", "full_text": ""})
+                out.append({**text_on, "name": "disk", "full_text": f"{disk.free//10**9}Go", "min_width": f"{disk.total//10**9}Go"})
+            else:
+                out.append({**icon_warning, "name": "disk", "full_text": ""})
+                out.append({**text_warning, "name": "disk", "full_text": f"{disk.free//10**9}Go", "min_width": f"{disk.total//10**9}Go"})
+        
+        if True: # RAM
+            if ram.percent < 20:
+                out.append({**icon_off, "name": "ram", "full_text": ""})
+                out.append({**text_off, "name": "ram", "full_text": f"{ram.percent}%", "min_width": "100%"})
+            elif ram.percent < 80:
+                out.append({**icon_on, "name": "ram", "full_text": ""})
+                out.append({**text_on, "name": "ram", "full_text": f"{ram.percent}%", "min_width": "100%"})
+            else:
+                out.append({**icon_warning, "name": "ram", "full_text": ""})
+                out.append({**text_warning, "name": "ram", "full_text": f"{ram.percent}%", "min_width": "100%"})
+            if ram.swap < 1:
+                pass
+            elif ram.swap < 20:
+                out.append({**icon_off, "name": "swap", "full_text": "✚"})
+                out.append({**text_off, "name": "swap", "full_text": f"{ram.swap}%", "min_width": "100%"})
+            elif ram.swap < 80:
+                out.append({**icon_on, "name": "swap", "full_text": "✚"})
+                out.append({**text_on, "name": "swap", "full_text": f"{ram.swap}%", "min_width": "100%"})
+            else:
+                out.append({**icon_warning, "name": "swap", "full_text": "✚"})
+                out.append({**text_warning, "name": "swap", "full_text": f"{ram.swap}%", "min_width": "100%"})
+
+        if True: # CPU
+            if cpu.percent < 10:
+                out.append({**icon_off, "name": "cpu", "full_text": ""})
+                out.append({**text_off, "name": "cpu", "full_text": f"{cpu.percent}%", "min_width": "100%"})
+            elif cpu.percent < 90:
+                out.append({**icon_on, "name": "cpu", "full_text": ""})
+                out.append({**text_on, "name": "cpu", "full_text": f"{cpu.percent}%", "min_width": "100%"})
+            else:
+                out.append({**icon_warning, "name": "cpu", "full_text": ""})
+                out.append({**text_warning, "name": "cpu", "full_text": f"{cpu.percent}%", "min_width": "100%"})
+
+        if gpu.active:
+            out.append({**icon_on, "name": "gpu", "full_text": ""})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 32})
+
+        if fan.speed:
+            out.append({**icon_on, "name": "fan", "full_text": ""})
+        else:
+            out.append({**icon_off, "name": "fan", "full_text": "ﴛ"})
+
+        if True: # Temperature
+            if temperature.temp < 50:
+                out.append({**icon_off, "name": "temperature", "full_text": ""})
+                out.append({**text_off, "name": "temperature", "full_text": f"{temperature.temp}℃", "min_width": "10℃"})
+            elif temperature.temp < 60:
+                out.append({**icon_off, "name": "temperature", "full_text": ""})
+                out.append({**text_off, "name": "temperature", "full_text": f"{temperature.temp}℃", "min_width": "10℃"})
+            elif temperature.temp < 70:
+                out.append({**icon_on, "name": "temperature", "full_text": ""})
+                out.append({**text_on, "name": "temperature", "full_text": f"{temperature.temp}℃", "min_width": "10℃"})
+            elif temperature.temp < 80:
+                out.append({**icon_on, "name": "temperature", "full_text": ""})
+                out.append({**text_on, "name": "temperature", "full_text": f"{temperature.temp}℃", "min_width": "10℃"})
+            else:
+                out.append({**icon_warning, "name": "temperature", "full_text": ""})
+                out.append({**text_warning, "name": "temperature", "full_text": f"{temperature.temp}℃", "min_width": "10℃"})
+
+        out.append({**icon_on, "name": "brightness", "full_text": "☀"})
+        out.append({**text_on, "name": "brightness", "full_text": f"{brightness.percent}%"})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 4})
+
+        if battery.power_plugged:
+            symbol = ""[battery.percent//10]
+            if battery.percent == 100:
+                out.append({**icon_off, "name": "battery", "full_text": symbol})
+            else:
+                out.append({**icon_on , "name": "battery", "full_text": symbol})
+            out.append({
+                **text_on,
+                "name": "battery",
+                "full_text": f"{battery.percent:n}%",
+                "short_text": "",
+                "min_width": "100%"})
+        else:
+            symbol = ""[battery.percent//10]
+            if battery.percent == 100:
+                out.append({**icon_off    , "name": "battery", "full_text": symbol})
+            elif battery.percent >= 20:
+                out.append({**icon_on     , "name": "battery", "full_text": symbol})
+            else:
+                out.append({**icon_warning, "name": "battery", "full_text": symbol})
+            minutes, _ = divmod(battery.secsleft, 60)
+            hours, minutes = divmod(minutes, 60)
+            out.append({
+                **text_on,
+                "name": "battery",
+                "full_text": f"{battery.percent:n}% ({hours}:{minutes:0>2})",
+                "short_text": "",
+                "min_width": "100% (00:00)"})
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 32})
+
+        out += [
+                {   **icon_on,
+                    "name": "clock",
+                    "instance": "day",
+                    "full_text": clock.day,
+                    "short_text": "",
+                    "min_width": "Aaa."
+                    },
+                {   **text_off,
+                    "name": "clock",
+                    "instance": "date",
+                    "full_text": clock.date,
+                    "short_text": clock.date_short,
+                    "min_width": "0000.00.00"
+                    },
+                {   **text_on ,
+                    "name": "clock",
+                    "instance": "hour",
+                    "full_text": clock.hour,
+                    "short_text": clock.hour_short,
+                    "min_width": "00.00.00"
+                    }
+                ]
+
+        out.append({**text_off, "full_text": " ", "separator_block_width": 4})
+
+        if updates.count > 90:
+            out.append({**icon_warning, "name": "updates", "full_text": "ﮮ ", "short_text": ""})
+        elif updates.count > 30:
+            out.append({**icon_on     , "name": "updates", "full_text": "ﮮ ", "short_text": ""})
+        elif updates.count > 10:
+            out.append({**icon_off    , "name": "updates", "full_text": "ﮮ ", "short_text": ""})
+
+        sys.stdout.write(json.dumps(out)+',')
+        sys.stdout.flush()
+
+        time.sleep(1)
 

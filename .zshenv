@@ -30,6 +30,7 @@ export LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;
 export GREP_COLORS='s=01;31:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
 
 export LESS='--ignore-case --LONG-PROMPT --RAW-CONTROL-CHARS --HILITE-UNREAD --tabs=4 --tilde --jump-target=.5'
+export SYSTEMD_LESS=$LESS
 export LESS_TERMCAP_mb=$'\E[1;31m'      # begin blink
 export LESS_TERMCAP_md=$'\E[1m'         # begin bold
 export LESS_TERMCAP_me=$'\E[21;39m'     # reset bold/blink

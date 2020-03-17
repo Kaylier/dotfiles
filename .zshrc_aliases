@@ -24,9 +24,9 @@ alias ps='ps u --forest'
 alias rm='rm --dir'
 alias sort='sort --ignore-leading-blanks'
 alias sshfs='sshfs -o reconnect'
+alias sudo='sudo ' # Pass aliases to sudo
 alias vpnc='sudo vpnc --no-detach'
 alias xxd='xxd --autoskip -groupsize 1'
-alias yay='yay --sudoloop'
 
 # }}}
 # Reattributed commands {{{

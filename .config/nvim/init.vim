@@ -125,7 +125,7 @@ set menuitems& " Maximum number of items in a menu
 set pumheight=0 " Maximum number of items to show in the popup menu
 
 set complete=.,w,b,u,t
-set completeopt=menuone,preview,noinsert
+set completeopt=menuone,preview
 set showfulltag " Show full template for C completion
 set dictionary& " List of file names used for completion
 

@@ -28,19 +28,19 @@ bindsym Ctrl+Alt+Backspace  exit
 # Colors {{{
 
 # active
-set $font0 #cccccc
-set $back0 #222222
-set $bord0 #007770
+set $font0 #eaeaea
+set $back0 #2c3133
+set $bord0 #869e9c
 set $indi0 #004166
 # inactive
-set $font1 #888888
+set $font1 #808080
 set $back1 #000000
-set $bord1 #333c44
+set $bord1 #364144
 set $indi1 #0c0c0c
 # urgent
-set $font2 #004433
-set $back2 #bb9966
-set $bord2 #bb4433
+set $font2 #d0d0d0
+set $back2 #443936
+set $bord2 #937e74
 set $indi2 #875fff
 # theme color
 set $font3 #00eedd
@@ -301,7 +301,7 @@ bar {
     position top
     strip_workspace_numbers yes
 
-    font pango:Roboto Bold, Awesome Bold 9
+    font pango:Roboto Bold, Symbols Nerd Font Bold 9
     colors {
         background $back1
         statusline $font3
@@ -336,6 +336,7 @@ for_window [workspace=$workspace8] fullscreen enable
 for_window [workspace=$workspace9] fullscreen enable
 for_window [workspace=$workspace10] fullscreen enable
 
+for_window [instance="pop-up"] floating enable
 for_window [window_role="pop-up"] floating enable
 for_window [window_role="bubble"] floating enable
 for_window [window_role="task_dialog"] floating enable
