@@ -1,0 +1,96 @@
+#! /usr/bin/python3
+import sys, os
+import argparse
+from string import Formatter
+import datetime
+
+class NonceTuple(tuple):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    def __getitem__(self, key):
+        return key
+
+class InputDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    def __missing__(self, key):
+        ans = input(f"Enter value for {{{key}}}: ")
+        self.__setitem__(key, ans)
+        return ans
+
+class QueryDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.missing = list()
+    def __missing__(self, key):
+        self.missing.append(key)
+        self.__setitem__(key, None)
+        return None
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+            description="Fill a template with user input.",
+            usage="%(prog)s [OPTIONS]... FILE...",
+            epilog="Additional variables filename, dirname, basename, BASENAME, datetime, date and time are automatically filled.",
+            add_help=True,
+            allow_abbrev=True
+            )
+    parser.add_argument('FILE', action='extend', nargs='+',
+            type=argparse.FileType('r'),
+            help=argparse.SUPPRESS)
+    parser.add_argument('-o', '--output', metavar='file', action='store',
+            type=argparse.FileType('w'), default=sys.stdout,
+            help="Redirect the output to a file", dest='outfile')
+
+    parser.add_argument('-e', '--environment', action='store_true',
+            help="Import shell environment variables", dest='shenv')
+    parser.add_argument('-D', '--define', metavar='VAR=VALUE', action='extend', nargs=1, default=[],
+            help="Predefine some variables (override shell environment if conflict)", dest='defines')
+
+    parser.add_argument('-l', '--list', action='store_true',
+            help="Show all variables to fill and exit", dest='l')
+
+    args = parser.parse_args()
+
+    fmt = Formatter()
+    variables = dict()
+
+    if args.shenv:
+        variables.update(os.environ)
+
+    for var in args.defines:
+        if '=' in var:
+            key, value = var.split('=',1)
+        else:
+            key, value = var, ''
+        variables[key] = value
+
+
+    if args.l:
+        variables = QueryDict(variables)
+        variables['filename'] = None
+        variables['dirname'] = None
+        variables['basename'] = None
+        variables['BASENAME'] = None
+        variables['datetime'] = None
+        variables['date'] = None
+        variables['time'] = None
+        for f in args.FILE:
+            out = fmt.vformat(f.read(), None, variables)
+        for var in variables.missing:
+            args.outfile.write(var+'\n')
+    else:
+        variables = InputDict(variables)
+        variables['datetime'] = str(datetime.datetime.now().strftime("%c"))
+        variables['date'] = str(datetime.datetime.now().strftime("%x"))
+        variables['time'] = str(datetime.datetime.now().strftime("%X"))
+        for f in args.FILE:
+            variables['filename'] = f.name
+            variables['dirname'] = os.path.dirname(f.name)
+            variables['basename'] = os.path.basename(f.name)
+            variables['BASENAME'] = os.path.basename(f.name).upper().replace('.','_')
+            out = fmt.vformat(f.read(), None, variables)
+        args.outfile.write(out)
+
+

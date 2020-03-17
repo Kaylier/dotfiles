@@ -1,0 +1,6 @@
+#ifndef {BASENAME}
+#define {BASENAME}
+
+
+
+#endif /* {BASENAME} */

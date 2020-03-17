@@ -1,0 +1,22 @@
+#ifndef {BASENAME}
+#define {BASENAME}
+
+class {classname}
+{
+public:
+    {classname}() = default;
+    {classname}(const {classname}& x) = default;
+    {classname}({classname}&& x) = default;
+    ~{classname}();
+
+    {classname}& operator=({classname} x) noexcept;
+    friend void swap({classname}& first, {classname}& second);
+    
+protected:
+    
+
+private:
+    
+};
+
+#endif // {BASENAME}
