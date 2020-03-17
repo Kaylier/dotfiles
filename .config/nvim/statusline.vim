@@ -29,6 +29,7 @@ if $TERM == "alacritty"
     let sepr = ""
     let glyphro = ""
     let glyphff = {"dos":"", "unix":"", "mac":""}
+    let glyphft = {"PKGBUILD": "", "aml": "ﭲ", "arch": "", "bdf": "ﯔ", "c": "ﭰ", "calendar": "", "cfg": "漣", "conf": "漣", "config": "漣", "cpp": "ﭱ", "cs": "", "csh": "","css": "", "desktop": "ﲾ", "dns": "", "dnsmask": "", "dockerfile": "", "dosbatch": "", "dosini": "", "git": "", "gitcommit": " ", "gitconfig": " 漣", "gitrebase": " ", "gitsendemail": " ", "haskel": "", "help": "ﬤ", "html": "", "java": "", "javascript": "", "javascriptreact": " ﰆ", "json": "ﬥ", "lprolog": "ﬦprolog", "lscript": "ﬦscript", "lua": "", "mail": "", "mailaliases": " alias", "mailcap": " 漣", "man": "龎", "manconf": "龎漣", "manual": "龎", "maple": "", "markdown": "", "messages": "", "ninja": "ﱲ", "passwd": "ﳳ", "pdf": "", "perl": "", "perl6": "", "php": "", "prolog": "", "python": "", "r": "ﳒ", "rhelp": "ﳒ ﬤ", "rmd": "ﳒ ", "rnoweb": "ﳒ noweb", "robots": "ﮧ", "rrst": "ﳒ rst", "ruby": "", "rust": "", "scala": "", "sh": "", "svg": "ﰟ", "tar": "", "tcsh": "", "text": "", "vim": "", "viminfo": " ", "xhtml": "謹", "xml": "謹", "zsh": ""}
 else
     let transl = " "
     let transr = " "
@@ -36,6 +37,7 @@ else
     let sepr = "|"
     let glyphro = "RO"
     let glyphff = {"dos":"dos", "unix":"unix", "mac":"mac"}
+    let glyphft = {}
 endif
 
 function! ActiveLine()
@@ -53,7 +55,11 @@ function! ActiveLine()
     endif
     let statusline.= "%4*%{transl}"
     if &filetype!=''
-        let statusline.= "%5* %{&filetype} %4*%{sepl}"
+        if has_key(g:glyphft, &filetype)
+            let statusline.= "%5* %{glyphft[&filetype]} %4*%{sepl}"
+        else
+            let statusline.= "%5* %{&filetype} %4*%{sepl}"
+        endif
     endif
     let statusline.= "%5* %{glyphff[&ff]}"
     let statusline.= "%5* %{strlen(&fenc)?&fenc:&enc}"
