@@ -247,7 +247,6 @@ def input_handler():
                 subprocess.Popen(["amixer", "sset", "Master", "5%-"], stdout=subprocess.DEVNULL)
 
 
-
 icon_on = {"color": "#33eedd", "align": "right", "separator": False, "separator_block_width": 3}
 icon_off = {"color": "#667788", "align": "right", "separator": False, "separator_block_width": 3}
 icon_warning = {"color": "#bb8844", "align": "right", "separator": False, "separator_block_width": 3}
@@ -255,13 +254,10 @@ text_on = {"color": "#eaeaea", "align": "left", "separator": False, "separator_b
 text_off = {"color": "#888888", "align": "left", "separator": False, "separator_block_width": 3}
 text_warning = {"color": "#937e74", "align": "left", "separator": False, "separator_block_width": 3}
 
-if __name__ == '__main__':
-    sys.stdout.write(json.dumps({"version": 1, "click_events": True}))
-    sys.stdout.write('[')
-
-    read_stdin = threading.Thread(target=input_handler)
-    read_stdin.start()
-    while True:
+class output:
+    def __init__(self):
+        self.out = []
+    def update(self):
         out = []
 
         # Music
@@ -475,8 +471,19 @@ if __name__ == '__main__':
         elif updates.count > 10:
             out.append({**icon_off    , "name": "updates", "full_text": "ﮮ ", "short_text": ""})
 
-        sys.stdout.write(json.dumps(out)+',')
-        sys.stdout.flush()
+        self.out = out
+output = output()
 
+
+if __name__ == '__main__':
+    sys.stdout.write(json.dumps({"version": 1, "click_events": True}))
+    sys.stdout.write('[')
+
+    read_stdin = threading.Thread(target=input_handler)
+    read_stdin.start()
+    while True:
+        output.update()
+        sys.stdout.write(json.dumps(output.out)+',')
+        sys.stdout.flush()
         time.sleep(1)
 
