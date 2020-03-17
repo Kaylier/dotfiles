@@ -51,5 +51,5 @@ export COLOR1_MEDIUM="#6b5b55"
 export COLOR1_DARK="#443936"
 export COLOR_ROOT="#9e5555"
 export COLOR_ERROR="#593639"
-export COLOR_WARNING="#593639"
+export COLOR_WARNING="#bb8844"
 

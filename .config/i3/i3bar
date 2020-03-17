@@ -247,8 +247,8 @@ def input_handler():
                 subprocess.Popen(["amixer", "sset", "Master", "5%-"], stdout=subprocess.DEVNULL)
 
 
-icon_on = {"color": "#33eedd", "align": "right", "separator": False, "separator_block_width": 3}
-icon_off = {"color": "#667788", "align": "right", "separator": False, "separator_block_width": 3}
+icon_on = {"color": "#2dddce", "align": "right", "separator": False, "separator_block_width": 3}
+icon_off = {"color": "#869e9c", "align": "right", "separator": False, "separator_block_width": 3}
 icon_warning = {"color": "#bb8844", "align": "right", "separator": False, "separator_block_width": 3}
 text_on = {"color": "#eaeaea", "align": "left", "separator": False, "separator_block_width": 3}
 text_off = {"color": "#888888", "align": "left", "separator": False, "separator_block_width": 3}
