@@ -287,6 +287,13 @@ autocmd FileType c,cpp set complete+=i,d
 autocmd FileType c,cpp set foldignore=#
 
 " }}}
+" Plugins {{{
+
+let g:UltiSnipsExpandTrigger="<c-s>"
+let g:UltiSnipsJumpForwardTrigger="<tab>"
+let g:UltiSnipsJumpBackwardTrigger="<backspace>"
+
+" }}}
 
 " vim:filetype=vim:syntax=vim
 " vim:foldmethod=marker:foldlevel=0
