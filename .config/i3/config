@@ -322,12 +322,8 @@ bar {
 # }}}
 # Windows assignements {{{
 
-assign [class="Firefox"] $workspace2
+assign [class="firefox"] $workspace2
 assign [class="Thunderbird"] $workspace2
-assign [class="Deluge"] $workspace2
-assign [class="jetbrains-clion"] $workspace3
-assign [class="jetbrains-idea"] $workspace3
-assign [class="Zotero"] $workspace5
 for_window [instance="scratchpad"] move to scratchpad
 for_window [workspace=$workspace2] layout tabbed
 for_window [workspace=$workspace5] layout tabbed
