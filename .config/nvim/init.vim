@@ -162,7 +162,7 @@ set foldmarker={{{,}}}
 set foldtext& " Expression displayed for closed folds
 
 set concealcursor=nvc " Conceal the text in normal, visual and command modes
-set conceallevel=1
+"set conceallevel=1
 
 source ~/.config/nvim/conceals.vim
 
@@ -214,11 +214,11 @@ function! ToggleView()
     if (&relativenumber == 1)
         set norelativenumber
         set number
-        set conceallevel=1
+        "set conceallevel=1
         set diffopt=filler,context:4,iblank,icase,iwhite,iwhiteall,iwhiteeol,internal
     else
         set relativenumber
-        set conceallevel=0
+        "set conceallevel=0
         set diffopt=filler,context:4,internal
     endif
 endfunc
