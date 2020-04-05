@@ -16,6 +16,13 @@ export XDG_MUSIC_DIR=${HOME}/music
 export XDG_PICTURES_DIR=${HOME}/image
 export XDG_VIDEOS_DIR=${HOME}/film
 
+export DESKTOP=${XDG_DESKTOP_DIR}
+export DOWNLOADS=${XDG_DOWNLOAD_DIR}
+export DOCUMENTS=${XDG_DOWNLOAD_DIR}
+export MUSIC=${XDG_MUSIC_DIR}
+export PICTURES=${XDG_PICTURES_DIR}
+export VIDEOS=${XDG_VIDEOS_DIR}
+
 export TERMINAL=alacritty
 export SHELL=/usr/bin/zsh
 export PAGER=/usr/bin/less

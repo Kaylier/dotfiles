@@ -151,6 +151,14 @@ set omnifunc=syntaxcomplete#Complete
 set foldenable
 set foldlevelstart=99 " 0 : tout est foldé, 99 : rien n'est foldé
 set foldmethod=syntax
+let javaScript_fold=1
+let perl_fold=1
+let php_folding=1
+let r_syntax_folding=1
+let ruby_fold=1
+let sh_fold_enabled=1
+let vimsyn_folding='af'
+let xml_syntax_folding=1
 set foldignore= " Lines starting with theses characters are ignored
 set foldminlines=1 " Minimum of line to be considered as foldable
 set foldclose= " When set to all, auto close when the cursor moves out
